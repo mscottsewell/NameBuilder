@@ -1,0 +1,36 @@
+name: Build Configurator
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'NameBuilderConfigurator/**'
+      - 'NameBuilder.sln'
+      - '.github/workflows/build-configurator.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'NameBuilderConfigurator/**'
+      - 'NameBuilder.sln'
+      - '.github/workflows/build-configurator.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore
+        run: nuget restore .\NameBuilder.sln
+
+      - name: Build (Release)
+        run: msbuild .\NameBuilder.sln /m /p:Configuration=Release
