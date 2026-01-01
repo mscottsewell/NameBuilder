@@ -1,0 +1,54 @@
+# Build artifacts
+bin/
+obj/
+[Bb]uild/
+[Bb]uildOutput/
+
+# Visual Studio / Rider
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.idea/
+*.iml
+
+# Logs / diagnostics
+*.log
+*.stackdump
+
+# NuGet / packages
+*.nupkg
+*.snupkg
+packages/
+**/packages/*
+!**/packages/build/
+!**/packages/repositories.config
+
+# Generated files
+*.cache
+*.dll.config
+*.pdb
+*.scc
+*.bak
+*.orig
+
+# Resharper / CodeRush
+_ReSharper*/
+*.DotSettings.user
+
+# Publish / temp
+.publishsettings
+[Tt]est[Rr]esult*/
+*.vspscc
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Tooling
+node_modules/
+*.tgz
+
+# Strong-name keys (uncomment if stored elsewhere)
+# *.snk
