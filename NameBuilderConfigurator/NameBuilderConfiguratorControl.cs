@@ -2210,7 +2210,7 @@ namespace NameBuilderConfigurator
             if (!info.IsInstalled)
             {
                 info.CanOfferUpdate = true;
-                info.UpdateActionText = "Install plug-in";
+                info.UpdateActionText = "Install plug-in first";
                 return;
             }
 
@@ -2220,7 +2220,7 @@ namespace NameBuilderConfigurator
                 localVersion > installedVersion)
             {
                 info.CanOfferUpdate = true;
-                info.UpdateActionText = "Update plug-in";
+                info.UpdateActionText = "Update plug-in first";
             }
         }
 

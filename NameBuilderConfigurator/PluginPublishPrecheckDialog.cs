@@ -22,7 +22,7 @@ namespace NameBuilderConfigurator
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
-            ClientSize = new Size(760, 420);
+            ClientSize = new Size(540, 260);
 
             var titleLabel = new Label
             {
@@ -41,37 +41,34 @@ namespace NameBuilderConfigurator
                 WordWrap = false,
                 Font = new Font(FontFamily.GenericMonospace, 9f),
                 Location = new Point(12, 40),
-                Size = new Size(ClientSize.Width - 24, ClientSize.Height - 96),
+                Size = new Size(ClientSize.Width - 24, ClientSize.Height - 86),
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
                 Text = FormatInfo(info)
             };
 
             continueButton = new Button
             {
-                Text = "Continue",
+                Text = "Continue without updating",
                 DialogResult = DialogResult.OK,
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
-                Size = new Size(100, 28),
-                Location = new Point(ClientSize.Width - 112, ClientSize.Height - 44)
+                Size = new Size(170, 28)
             };
 
             updateButton = new Button
             {
-                Text = string.IsNullOrWhiteSpace(info.UpdateActionText) ? "Update plug-in" : info.UpdateActionText,
+                Text = string.IsNullOrWhiteSpace(info.UpdateActionText) ? "Update plug-in first" : info.UpdateActionText,
                 DialogResult = DialogResult.Retry,
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
-                Size = new Size(120, 28),
-                Location = new Point(ClientSize.Width - 244, ClientSize.Height - 44),
+                Size = new Size(160, 28),
                 Visible = info.CanOfferUpdate
             };
 
             cancelButton = new Button
             {
-                Text = "Cancel",
+                Text = "Cancel publish",
                 DialogResult = DialogResult.Cancel,
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
-                Size = new Size(100, 28),
-                Location = new Point(ClientSize.Width - 224, ClientSize.Height - 44)
+                Size = new Size(110, 28)
             };
 
             Controls.Add(titleLabel);
@@ -80,8 +77,31 @@ namespace NameBuilderConfigurator
             Controls.Add(continueButton);
             Controls.Add(cancelButton);
 
+            LayoutButtons();
+
             AcceptButton = continueButton;
             CancelButton = cancelButton;
+        }
+
+        private void LayoutButtons()
+        {
+            const int padding = 12;
+            const int gap = 8;
+            var y = ClientSize.Height - padding - 28;
+
+            // Right-align buttons: Cancel, Continue, (optional) Update.
+            cancelButton.Location = new Point(ClientSize.Width - padding - cancelButton.Width, y);
+            continueButton.Location = new Point(cancelButton.Left - gap - continueButton.Width, y);
+
+            if (updateButton.Visible)
+            {
+                updateButton.Location = new Point(continueButton.Left - gap - updateButton.Width, y);
+            }
+            else
+            {
+                // Keep spacing consistent even when update is hidden.
+                updateButton.Location = new Point(continueButton.Left - gap - updateButton.Width, y);
+            }
         }
 
         private static string FormatInfo(PluginPublishPrecheckInfo info)
