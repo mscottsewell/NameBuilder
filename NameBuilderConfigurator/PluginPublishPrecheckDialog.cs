@@ -79,7 +79,14 @@ namespace NameBuilderConfigurator
 
             LayoutButtons();
 
-            AcceptButton = continueButton;
+            if (!info.IsInstalled)
+            {
+                continueButton.Enabled = false;
+            }
+
+            AcceptButton = continueButton.Enabled
+                ? (IButtonControl)continueButton
+                : (updateButton.Visible ? updateButton : cancelButton);
             CancelButton = cancelButton;
         }
 
