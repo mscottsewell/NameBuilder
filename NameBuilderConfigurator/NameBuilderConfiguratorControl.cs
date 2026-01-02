@@ -2011,23 +2011,26 @@ namespace NameBuilderConfigurator
                 var precheckInfo = BuildPluginPublishPrecheckInfo();
                 ApplyUpdateOffer(precheckInfo);
 
-                using (var precheckDialog = new PluginPublishPrecheckDialog(precheckInfo))
+                if (ShouldShowPluginPrecheckDialog(precheckInfo))
                 {
-                    var result = precheckDialog.ShowDialog(this);
-                    if (result == DialogResult.Cancel)
+                    using (var precheckDialog = new PluginPublishPrecheckDialog(precheckInfo))
                     {
-                        return;
-                    }
-
-                    if (result == DialogResult.Retry)
-                    {
-                        if (!TryStartPluginUpdateFromPrecheck(precheckInfo, () => BeginPublishFlow(skipPrecheck: true)))
+                        var result = precheckDialog.ShowDialog(this);
+                        if (result == DialogResult.Cancel)
                         {
                             return;
                         }
 
-                        // Publish will resume after the plug-in installation completes.
-                        return;
+                        if (result == DialogResult.Retry)
+                        {
+                            if (!TryStartPluginUpdateFromPrecheck(precheckInfo, () => BeginPublishFlow(skipPrecheck: true)))
+                            {
+                                return;
+                            }
+
+                            // Publish will resume after the plug-in installation completes.
+                            return;
+                        }
                     }
                 }
             }
@@ -2191,6 +2194,30 @@ namespace NameBuilderConfigurator
                         }
                     });
             }
+        }
+
+        private bool ShouldShowPluginPrecheckDialog(PluginPublishPrecheckInfo info)
+        {
+            if (info == null)
+            {
+                return false;
+            }
+
+            // Always show if plug-in is missing, or if we're offering an update/install action.
+            if (!info.IsInstalled || info.CanOfferUpdate)
+            {
+                return true;
+            }
+
+            // Only skip silently when we can confidently compare and versions match.
+            if (TryParseVersion(GetLocalComparableVersionString(info), out var localVersion) &&
+                TryParseVersion(GetInstalledComparableVersionString(info), out var installedVersion))
+            {
+                return localVersion != installedVersion;
+            }
+
+            // If we can't compare, show the dialog (so the user can see what's missing).
+            return true;
         }
 
         private void ApplyUpdateOffer(PluginPublishPrecheckInfo info)

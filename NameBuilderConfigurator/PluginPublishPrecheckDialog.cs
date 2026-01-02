@@ -22,7 +22,7 @@ namespace NameBuilderConfigurator
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
-            ClientSize = new Size(540, 260);
+            ClientSize = new Size(540, 285);
 
             var titleLabel = new Label
             {
