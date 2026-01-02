@@ -1993,11 +1993,43 @@ namespace NameBuilderConfigurator
 
         private void PublishToolButton_Click(object sender, EventArgs e)
         {
+            BeginPublishFlow();
+        }
+
+        private void BeginPublishFlow(bool skipPrecheck = false)
+        {
             if (Service == null)
             {
                 MessageBox.Show("Please connect to a Dataverse environment first.", "Not Connected",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
+            }
+
+            if (!skipPrecheck)
+            {
+                // Run before the Create/Update publish target selection dialog.
+                var precheckInfo = BuildPluginPublishPrecheckInfo();
+                ApplyUpdateOffer(precheckInfo);
+
+                using (var precheckDialog = new PluginPublishPrecheckDialog(precheckInfo))
+                {
+                    var result = precheckDialog.ShowDialog(this);
+                    if (result == DialogResult.Cancel)
+                    {
+                        return;
+                    }
+
+                    if (result == DialogResult.Retry)
+                    {
+                        if (!TryStartPluginUpdateFromPrecheck(precheckInfo, () => BeginPublishFlow(skipPrecheck: true)))
+                        {
+                            return;
+                        }
+
+                        // Publish will resume after the plug-in installation completes.
+                        return;
+                    }
+                }
             }
 
             if (!EnsureActivePluginTypeLoaded())
@@ -2101,16 +2133,6 @@ namespace NameBuilderConfigurator
                     SolutionId = finalSolutionId
                 };
 
-                // Pre-publish check: verify installed plug-in presence and compare versions.
-                var precheckInfo = BuildPluginPublishPrecheckInfo();
-                using (var precheckDialog = new PluginPublishPrecheckDialog(precheckInfo))
-                {
-                    if (precheckDialog.ShowDialog(this) != DialogResult.OK)
-                    {
-                        return;
-                    }
-                }
-
                 publishToolButton.Enabled = false;
 
                 var publishContext = context;
@@ -2169,6 +2191,92 @@ namespace NameBuilderConfigurator
                         }
                     });
             }
+        }
+
+        private void ApplyUpdateOffer(PluginPublishPrecheckInfo info)
+        {
+            if (info == null)
+            {
+                return;
+            }
+
+            var hasLocalDll = !string.IsNullOrWhiteSpace(info.LocalAssemblyPath) && File.Exists(info.LocalAssemblyPath);
+            if (!hasLocalDll)
+            {
+                info.CanOfferUpdate = false;
+                return;
+            }
+
+            if (!info.IsInstalled)
+            {
+                info.CanOfferUpdate = true;
+                info.UpdateActionText = "Install plug-in";
+                return;
+            }
+
+            // Offer update when local FileVersion is newer than installed FileVersion (or installed version fallback).
+            if (TryParseVersion(GetLocalComparableVersionString(info), out var localVersion) &&
+                TryParseVersion(GetInstalledComparableVersionString(info), out var installedVersion) &&
+                localVersion > installedVersion)
+            {
+                info.CanOfferUpdate = true;
+                info.UpdateActionText = "Update plug-in";
+            }
+        }
+
+        private bool TryStartPluginUpdateFromPrecheck(PluginPublishPrecheckInfo info, Action continuation)
+        {
+            if (info == null)
+            {
+                return false;
+            }
+
+            var path = info.LocalAssemblyPath;
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                MessageBox.Show(this, "Packaged NameBuilder.dll could not be located to install/update.",
+                    "Plug-in Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
+            // Best-effort solution selection. If solutions aren't loaded, or the user cancels, fall back to null.
+            Guid? solutionId = null;
+            try
+            {
+                var preference = GetConnectionPreference();
+                solutionId = preference?.PluginSolutionId;
+                var selectedSolutionItem = preference != null
+                    ? solutions?.FirstOrDefault(s => s.SolutionId == solutionId)
+                    : null;
+
+                if (solutions != null && solutions.Count > 0 && (!solutionId.HasValue || IsDefaultSolution(selectedSolutionItem)))
+                {
+                    using (var solutionDialog = new PluginSolutionSelectionDialog(solutions, solutionId))
+                    {
+                        if (solutionDialog.ShowDialog(this) == DialogResult.OK)
+                        {
+                            solutionId = solutionDialog.SelectedSolutionId;
+                            PersistConnectionPreference(pref =>
+                            {
+                                pref.PluginSolutionId = solutionDialog.SelectedSolutionId;
+                                pref.PluginSolutionUniqueName = solutionDialog.SelectedSolutionUniqueName;
+                            });
+                        }
+                        else
+                        {
+                            // User canceled; treat as cancel publish.
+                            return false;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                solutionId = null;
+            }
+
+            StartPluginInstallation(path, solutionId, postInstallContinuation: continuation);
+            return true;
         }
 
         private PluginPublishPrecheckInfo BuildPluginPublishPrecheckInfo()

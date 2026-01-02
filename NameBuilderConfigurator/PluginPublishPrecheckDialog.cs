@@ -9,6 +9,7 @@ namespace NameBuilderConfigurator
     {
         private readonly TextBox detailsTextBox;
         private readonly Button continueButton;
+        private readonly Button updateButton;
         private readonly Button cancelButton;
 
         public PluginPublishPrecheckDialog(PluginPublishPrecheckInfo info)
@@ -51,7 +52,17 @@ namespace NameBuilderConfigurator
                 DialogResult = DialogResult.OK,
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
                 Size = new Size(100, 28),
-                Location = new Point(ClientSize.Width - 224, ClientSize.Height - 44)
+                Location = new Point(ClientSize.Width - 112, ClientSize.Height - 44)
+            };
+
+            updateButton = new Button
+            {
+                Text = string.IsNullOrWhiteSpace(info.UpdateActionText) ? "Update plug-in" : info.UpdateActionText,
+                DialogResult = DialogResult.Retry,
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+                Size = new Size(120, 28),
+                Location = new Point(ClientSize.Width - 244, ClientSize.Height - 44),
+                Visible = info.CanOfferUpdate
             };
 
             cancelButton = new Button
@@ -60,11 +71,12 @@ namespace NameBuilderConfigurator
                 DialogResult = DialogResult.Cancel,
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
                 Size = new Size(100, 28),
-                Location = new Point(ClientSize.Width - 112, ClientSize.Height - 44)
+                Location = new Point(ClientSize.Width - 224, ClientSize.Height - 44)
             };
 
             Controls.Add(titleLabel);
             Controls.Add(detailsTextBox);
+            Controls.Add(updateButton);
             Controls.Add(continueButton);
             Controls.Add(cancelButton);
 
@@ -133,5 +145,8 @@ namespace NameBuilderConfigurator
         public string ComparisonSummary { get; set; }
         public string WarningOrNote { get; set; }
         public string ErrorMessage { get; set; }
+
+        public bool CanOfferUpdate { get; set; }
+        public string UpdateActionText { get; set; }
     }
 }
