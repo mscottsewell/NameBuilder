@@ -1,8 +1,8 @@
-# NameBuilder (Monorepo)
+# NameBuilder
 
 This repo contains:
-- NameBuilderConfigurator/ (XrmToolBox configurator)
-- NameBuilderPlugin/ (Dataverse plugin)
+- NameBuilderConfigurator/ (XrmToolBox-based visual configurator and deployer of the NameBuilderPlugin.)
+- NameBuilderPlugin/ (Dataverse plugin - can be used stand-alone if XrmToolBox usage isn't an option)
 
 ## TL;DR
 
@@ -12,6 +12,7 @@ This repo contains:
 	- `pwsh -File .\build.ps1 -Pack -SkipDeploy -SkipPluginRebuildIfUnchanged`
 
 Notes:
+
 - `build.ps1` is the unified build/pack script.
 - Use `-Pack` to enable NuGet packaging (default is build-only).
 - Use `-NoBuild`/`-NoPack` (aliases: `-PackOnly`/`-BuildOnly`) to switch modes.

@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("NameBuilder Configurator")]
-[assembly: AssemblyDescription("Build JSON configurations for the NameBuilder project")]
+[assembly: AssemblyDescription("Configure and deploy the NameBuilder plugin. Constructs the entity record's name field using a configured, standardized pattern.")]
 [assembly: AssemblyConfiguration("Scott Sewell")]
 [assembly: AssemblyCompany("Scott Sewell")]
 [assembly: AssemblyProduct("NameBuilder Configurator")]
-[assembly: AssemblyCopyright("Copyright © 2025")]
+[assembly: AssemblyCopyright("Copyright © 2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.ServiceModel;
@@ -988,14 +989,14 @@ namespace NameBuilderConfigurator
                 Dock = DockStyle.Fill,
                 GripStyle = ToolStripGripStyle.Hidden,
                 Padding = new Padding(5, 0, 5, 0),
-                ImageScalingSize = new Size(18, 18)
+                ImageScalingSize = new Size(20, 20)
             };
             
             var loadEntitiesToolButton = new ToolStripButton
             {
                 Text = "Load Metadata",
                 DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                Image = LoadToolbarIcon("LoadEntities.png", SystemIcons.Application)
+                Image = LoadToolbarIcon("LoadEntities.png", SystemIcons.Application),
             };
             loadEntitiesToolButton.Click += LoadEntitiesButton_Click;
             loadEntitiesToolButton.ToolTipText = "Reload entity metadata and refresh the Available Attributes list.";
@@ -1005,7 +1006,7 @@ namespace NameBuilderConfigurator
             {
                 Text = "Retrieve Configured Entity",
                 DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                Image = LoadToolbarIcon("RetrieveConfiguration.png", SystemIcons.Information)
+                Image = LoadToolbarIcon("RetrieveConfiguration.png", SystemIcons.Information),
             };
             retrieveConfigToolButton.Click += RetrieveConfigurationToolButton_Click;
             retrieveConfigToolButton.ToolTipText = "Pull an existing NameBuilder plug-in step configuration from Dataverse.";
@@ -1016,7 +1017,7 @@ namespace NameBuilderConfigurator
                 Text = "Register Plug-in",
                 DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
                 Enabled = false,
-                Image = LoadToolbarIcon("NameBuilder_Monoline_32x32.png", SystemIcons.Shield)
+                Image = LoadToolbarIcon("NameBuilder_Monoline.png", SystemIcons.Shield),
             };
             registerPluginToolButton.Click += RegisterPluginToolButton_Click;
             registerPluginToolButton.ToolTipText = "Verify or deploy the NameBuilder plug-in assembly into the connected environment.";
@@ -1028,7 +1029,7 @@ namespace NameBuilderConfigurator
             {
                 Text = "Import file",
                 DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                Image = LoadToolbarIcon("ImportJSON.png", SystemIcons.Shield)
+                Image = LoadToolbarIcon("ImportJSON.png", SystemIcons.Shield),
             };
             importJsonToolButton.Click += ImportJsonToolButton_Click;
             importJsonToolButton.ToolTipText = "Load a NameBuilder JSON file from disk and rebuild the designer.";
@@ -1039,7 +1040,7 @@ namespace NameBuilderConfigurator
                 Text = "Export file",
                 DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
                 Enabled = false,
-                Image = LoadToolbarIcon("ExportJSON.png", SystemIcons.Asterisk)
+                Image = LoadToolbarIcon("ExportJSON.png", SystemIcons.Asterisk),
             };
             exportJsonToolButton.Click += ExportJsonButton_Click;
             exportJsonToolButton.ToolTipText = "Save the current NameBuilder payload to a JSON file.";
@@ -1050,7 +1051,7 @@ namespace NameBuilderConfigurator
                 Text = "Copy to clipboard",
                 DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
                 Enabled = false,
-                Image = LoadToolbarIcon("CopyJSON.png", SystemIcons.Question)
+                Image = LoadToolbarIcon("CopyJSON.png", SystemIcons.Question),
             };
             copyJsonToolButton.Click += CopyJsonButton_Click;
             copyJsonToolButton.ToolTipText = "Copy the generated JSON to the clipboard.";
@@ -1063,7 +1064,7 @@ namespace NameBuilderConfigurator
                 Text = "Publish Configuration",
                 DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
                 Enabled = false,
-                Image = LoadToolbarIcon("PublishConfiguration.png", SystemIcons.Warning)
+                Image = LoadToolbarIcon("PublishConfiguration.png", SystemIcons.Warning),
             };
             publishToolButton.Click += PublishToolButton_Click;
             publishToolButton.ToolTipText = "Push the JSON back to the selected NameBuilder steps (Create/Update).";
@@ -2100,6 +2101,16 @@ namespace NameBuilderConfigurator
                     SolutionId = finalSolutionId
                 };
 
+                // Pre-publish check: verify installed plug-in presence and compare versions.
+                var precheckInfo = BuildPluginPublishPrecheckInfo();
+                using (var precheckDialog = new PluginPublishPrecheckDialog(precheckInfo))
+                {
+                    if (precheckDialog.ShowDialog(this) != DialogResult.OK)
+                    {
+                        return;
+                    }
+                }
+
                 publishToolButton.Enabled = false;
 
                 var publishContext = context;
@@ -2158,6 +2169,298 @@ namespace NameBuilderConfigurator
                         }
                     });
             }
+        }
+
+        private PluginPublishPrecheckInfo BuildPluginPublishPrecheckInfo()
+        {
+            var info = new PluginPublishPrecheckInfo();
+
+            try
+            {
+                info.EnvironmentName = lastConnectionDetail?.OrganizationFriendlyName
+                    ?? lastConnectionDetail?.OrganizationVersion
+                    ?? lastConnectionDetail?.OrganizationServiceUrl;
+            }
+            catch
+            {
+                // best-effort only
+            }
+
+            try
+            {
+                var installed = TryGetInstalledNameBuilderAssemblyInfo();
+                info.IsInstalled = installed != null;
+                info.InstalledAssemblyName = installed?.Name;
+                info.InstalledVersion = installed?.Version;
+                info.InstalledModifiedOn = installed?.ModifiedOn;
+                info.InstalledAssemblyVersion = installed?.AssemblyVersion;
+                info.InstalledFileVersion = installed?.FileVersion;
+            }
+            catch (Exception ex)
+            {
+                info.ErrorMessage = $"Unable to query installed plug-in: {ex.Message}";
+            }
+
+            try
+            {
+                info.LocalAssemblyPath = ResolveLocalPluginAssemblyPath();
+                if (!string.IsNullOrWhiteSpace(info.LocalAssemblyPath) && File.Exists(info.LocalAssemblyPath))
+                {
+                    var an = AssemblyName.GetAssemblyName(info.LocalAssemblyPath);
+                    info.LocalAssemblyVersion = an?.Version?.ToString();
+
+                    var fvi = FileVersionInfo.GetVersionInfo(info.LocalAssemblyPath);
+                    info.LocalFileVersion = fvi?.FileVersion;
+                }
+                else
+                {
+                    info.WarningOrNote = "Packaged NameBuilder.dll was not found under Assets\\DataversePlugin. Version comparison may be incomplete.";
+                }
+            }
+            catch (Exception ex)
+            {
+                info.ErrorMessage = (string.IsNullOrWhiteSpace(info.ErrorMessage)
+                    ? $"Unable to read packaged plug-in version: {ex.Message}"
+                    : info.ErrorMessage + Environment.NewLine + $"Unable to read packaged plug-in version: {ex.Message}");
+            }
+
+            info.ComparisonSummary = BuildPluginVersionComparisonSummary(info);
+
+            if (info.IsInstalled &&
+                TryParseVersion(GetLocalComparableVersionString(info), out var localVersion) &&
+                TryParseVersion(GetInstalledComparableVersionString(info), out var installedVersion) &&
+                localVersion > installedVersion)
+            {
+                info.WarningOrNote = string.IsNullOrWhiteSpace(info.WarningOrNote)
+                    ? "The packaged plug-in appears newer than the installed plug-in. (Next step could be offering to update the plug-in before publishing.)"
+                    : info.WarningOrNote + Environment.NewLine + "The packaged plug-in appears newer than the installed plug-in.";
+            }
+
+            return info;
+        }
+
+        private string BuildPluginVersionComparisonSummary(PluginPublishPrecheckInfo info)
+        {
+            if (info == null)
+            {
+                return null;
+            }
+
+            if (!info.IsInstalled)
+            {
+                return "Not installed in Dataverse.";
+            }
+
+            var localComparable = GetLocalComparableVersionString(info);
+            var hasLocal = TryParseVersion(localComparable, out var localVersion);
+            var installedComparable = GetInstalledComparableVersionString(info);
+            var hasInstalled = TryParseVersion(installedComparable, out var installedVersion);
+
+            if (!hasLocal && !hasInstalled)
+            {
+                return "Unable to compare versions (both versions are missing/unparseable).";
+            }
+
+            if (!hasLocal)
+            {
+                return "Unable to compare versions (local FileVersion is missing/unparseable).";
+            }
+
+            if (!hasInstalled)
+            {
+                return "Unable to compare versions (installed FileVersion is missing/unparseable).";
+            }
+
+            var cmp = localVersion.CompareTo(installedVersion);
+            if (cmp == 0)
+            {
+                return "Local FileVersion and installed FileVersion match.";
+            }
+
+            if (cmp > 0)
+            {
+                return "Local packaged plug-in FileVersion is NEWER than the installed plug-in.";
+            }
+
+            return "Local packaged plug-in FileVersion is OLDER than the installed plug-in.";
+        }
+
+        private string GetLocalComparableVersionString(PluginPublishPrecheckInfo info)
+        {
+            if (info == null)
+            {
+                return null;
+            }
+
+            // Prefer FileVersion for comparisons (AssemblyVersion is kept stable).
+            if (!string.IsNullOrWhiteSpace(info.LocalFileVersion))
+            {
+                return info.LocalFileVersion;
+            }
+
+            return info.LocalAssemblyVersion;
+        }
+
+        private string GetInstalledComparableVersionString(PluginPublishPrecheckInfo info)
+        {
+            if (info == null)
+            {
+                return null;
+            }
+
+            // Prefer installed DLL FileVersion for comparisons. If it's unavailable,
+            // fall back to the Dataverse pluginassembly.version field.
+            if (!string.IsNullOrWhiteSpace(info.InstalledFileVersion))
+            {
+                return info.InstalledFileVersion;
+            }
+
+            return info.InstalledVersion;
+        }
+
+        private bool TryParseVersion(string value, out Version version)
+        {
+            version = null;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            return Version.TryParse(value.Trim(), out version);
+        }
+
+        private InstalledPluginAssemblyInfo TryGetInstalledNameBuilderAssemblyInfo()
+        {
+            var query = new QueryExpression("pluginassembly")
+            {
+                ColumnSet = new ColumnSet("pluginassemblyid", "name", "version", "modifiedon"),
+                Criteria = new FilterExpression
+                {
+                    Conditions =
+                    {
+                        new ConditionExpression("name", ConditionOperator.Equal, "NameBuilder")
+                    }
+                },
+                TopCount = 1
+            };
+
+            var assembly = Service?.RetrieveMultiple(query)?.Entities?.FirstOrDefault();
+            if (assembly == null)
+            {
+                return null;
+            }
+
+            string contentBase64 = null;
+            try
+            {
+                // Retrieve content separately to avoid pulling the blob in the initial query.
+                var full = Service.Retrieve("pluginassembly", assembly.Id, new ColumnSet("content"));
+                contentBase64 = full?.GetAttributeValue<string>("content");
+            }
+            catch
+            {
+                // If content can't be retrieved, continue with what we have.
+            }
+
+            var extracted = TryExtractVersionInfoFromBase64Dll(contentBase64);
+
+            return new InstalledPluginAssemblyInfo
+            {
+                Id = assembly.Id,
+                Name = assembly.GetAttributeValue<string>("name"),
+                Version = assembly.GetAttributeValue<string>("version"),
+                ModifiedOn = assembly.GetAttributeValue<DateTime?>("modifiedon"),
+                AssemblyVersion = extracted?.AssemblyVersion,
+                FileVersion = extracted?.FileVersion
+            };
+        }
+
+        private InstalledDllVersionInfo TryExtractVersionInfoFromBase64Dll(string base64)
+        {
+            if (string.IsNullOrWhiteSpace(base64))
+            {
+                return null;
+            }
+
+            byte[] bytes;
+            try
+            {
+                bytes = Convert.FromBase64String(base64);
+            }
+            catch
+            {
+                return null;
+            }
+
+            var tempPath = Path.Combine(Path.GetTempPath(), $"NameBuilder_{Guid.NewGuid():N}.dll");
+            try
+            {
+                File.WriteAllBytes(tempPath, bytes);
+
+                string assemblyVersion = null;
+                string fileVersion = null;
+
+                try
+                {
+                    var an = AssemblyName.GetAssemblyName(tempPath);
+                    assemblyVersion = an?.Version?.ToString();
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                try
+                {
+                    var fvi = FileVersionInfo.GetVersionInfo(tempPath);
+                    fileVersion = fvi?.FileVersion;
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                if (string.IsNullOrWhiteSpace(assemblyVersion) && string.IsNullOrWhiteSpace(fileVersion))
+                {
+                    return null;
+                }
+
+                return new InstalledDllVersionInfo
+                {
+                    AssemblyVersion = assemblyVersion,
+                    FileVersion = fileVersion
+                };
+            }
+            finally
+            {
+                try
+                {
+                    if (File.Exists(tempPath))
+                    {
+                        File.Delete(tempPath);
+                    }
+                }
+                catch
+                {
+                    // ignore cleanup errors
+                }
+            }
+        }
+
+        private sealed class InstalledPluginAssemblyInfo
+        {
+            public Guid Id { get; set; }
+            public string Name { get; set; }
+            public string Version { get; set; }
+            public DateTime? ModifiedOn { get; set; }
+            public string AssemblyVersion { get; set; }
+            public string FileVersion { get; set; }
+        }
+
+        private sealed class InstalledDllVersionInfo
+        {
+            public string AssemblyVersion { get; set; }
+            public string FileVersion { get; set; }
         }
 
         private void StartRetrieveConfigurationFlow()
@@ -4976,7 +5279,10 @@ namespace NameBuilderConfigurator
                     using (var fs = new FileStream(iconPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                     using (var original = Image.FromStream(fs))
                     {
-                        return new Bitmap(original, new Size(18, 18));
+                        using (var clone = new Bitmap(original))
+                        {
+                            return new Bitmap(clone, new Size(20, 20));
+                        }
                     }
                 }
                 catch
@@ -5061,7 +5367,10 @@ namespace NameBuilderConfigurator
                     using (var ms = new MemoryStream(bytes))
                     using (var original = Image.FromStream(ms))
                     {
-                        return new Bitmap(original, new Size(18, 18));
+                        using (var clone = new Bitmap(original))
+                        {
+                            return new Bitmap(clone, new Size(20, 20));
+                        }
                     }
                 }
                 catch
@@ -5080,15 +5389,10 @@ namespace NameBuilderConfigurator
                 return null;
             }
 
-            var bitmap = baseIcon.ToBitmap();
-            if (bitmap.Width == 18 && bitmap.Height == 18)
+            using (var bitmap = baseIcon.ToBitmap())
             {
-                return bitmap;
+                return new Bitmap(bitmap, new Size(20, 20));
             }
-
-            var resized = new Bitmap(bitmap, new Size(18, 18));
-            bitmap.Dispose();
-            return resized;
         }
         
         /// <summary>

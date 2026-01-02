@@ -42,6 +42,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# The plugin's AssemblyVersion is intentionally kept fixed to avoid binding issues.
+# Only AssemblyFileVersion is allowed to increment.
+$PluginFixedAssemblyVersion = "1.0.0.0"
+
 if ($PluginOnly -and $ConfiguratorOnly) {
     throw 'Specify only one of -PluginOnly or -ConfiguratorOnly.'
 }
@@ -318,6 +322,16 @@ function Update-PluginFileVersion {
 
     $content = Get-Content -Path $AssemblyInfoPath -Raw
 
+    $asmVersionMatch = [regex]::Match($content, 'AssemblyVersion\("(?<ver>[^\"]+)"\)')
+    if (-not $asmVersionMatch.Success) {
+        throw "AssemblyVersion attribute not found in $AssemblyInfoPath"
+    }
+
+    $asmCurrent = $asmVersionMatch.Groups['ver'].Value
+    if ($asmCurrent -ne $PluginFixedAssemblyVersion) {
+        throw "Plugin AssemblyVersion must remain $PluginFixedAssemblyVersion (found $asmCurrent). Update the plugin file version only."
+    }
+
     $fileVersionMatch = [regex]::Match($content, 'AssemblyFileVersion\("(?<ver>[^"]+)"\)')
     if (-not $fileVersionMatch.Success) {
         throw "AssemblyFileVersion attribute not found in $AssemblyInfoPath"
@@ -328,6 +342,13 @@ function Update-PluginFileVersion {
 
     # Preserve AssemblyVersion; only bump AssemblyFileVersion
     $content = $content -replace 'AssemblyFileVersion\("[^"]*"\)', "AssemblyFileVersion(`"$next`")"
+
+    # Safety: verify AssemblyVersion is still fixed after the edit
+    $asmAfterMatch = [regex]::Match($content, 'AssemblyVersion\("(?<ver>[^\"]+)"\)')
+    if (-not $asmAfterMatch.Success -or $asmAfterMatch.Groups['ver'].Value -ne $PluginFixedAssemblyVersion) {
+        $found = if ($asmAfterMatch.Success) { $asmAfterMatch.Groups['ver'].Value } else { "(missing)" }
+        throw "Plugin AssemblyVersion must remain $PluginFixedAssemblyVersion (found $found) after version update."
+    }
 
     Set-Content -Path $AssemblyInfoPath -Value $content -Encoding ascii
     Write-Info "Incremented Plugin file version: $current -> $next"
