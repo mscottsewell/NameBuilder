@@ -1087,7 +1087,7 @@ namespace NameBuilderConfigurator
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Horizontal,
-                SplitterDistance = Math.Max(64, Math.Min(initialSettings.PreviewHeight, 80))
+                SplitterDistance = Math.Max(52, Math.Min(initialSettings.PreviewHeight, 64))
             };
 
             // Bottom of right side: split between middle and right panels
@@ -1369,7 +1369,7 @@ namespace NameBuilderConfigurator
             middleRightSplitter.Panel2.Controls.Add(rightPanel);
 
             // Preview spanning middle+right, but only at the top of the right side
-            var previewPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8) };
+            var previewPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8, 4, 8, 4) };
             var previewLabel = new System.Windows.Forms.Label
             {
                 Text = "Live Preview:",
@@ -1377,11 +1377,10 @@ namespace NameBuilderConfigurator
                 Dock = DockStyle.Top,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
-            previewPanel.Controls.Add(previewLabel);
             previewTextBox = new TextBox
             {
-                Dock = DockStyle.Top,
-                Height = 28,
+                Dock = DockStyle.Fill,
+                MinimumSize = new Size(0, 28),
                 Multiline = true,
                 ReadOnly = true,
                 BackColor = Color.LightYellow,
@@ -1390,6 +1389,7 @@ namespace NameBuilderConfigurator
             };
             helpToolTip.SetToolTip(previewTextBox, "Live example of the assembled name for the selected sample record.");
             previewPanel.Controls.Add(previewTextBox);
+            previewPanel.Controls.Add(previewLabel);
 
             rightTopBottomSplitter.Panel1.Controls.Add(previewPanel);
             rightTopBottomSplitter.Panel2.Controls.Add(middleRightSplitter);
@@ -1431,7 +1431,7 @@ namespace NameBuilderConfigurator
             {
                 if (isRestoringLayout || !allowPersistence) return;
                 var st = PluginUserSettings.Load();
-                st.PreviewHeight = Math.Max(64, Math.Min(rightTopBottomSplitter.SplitterDistance, 80));
+                st.PreviewHeight = Math.Max(52, Math.Min(rightTopBottomSplitter.SplitterDistance, 64));
                 st.Save();
             };
 
@@ -1467,7 +1467,7 @@ namespace NameBuilderConfigurator
                     middleRightSplitter.SplitterDistance = Math.Max(200, middleWidth);
                     
                     // Preview height (persisted)
-                    rightTopBottomSplitter.SplitterDistance = Math.Max(64, Math.Min(settings.PreviewHeight, 80));
+                    rightTopBottomSplitter.SplitterDistance = Math.Max(52, Math.Min(settings.PreviewHeight, 64));
                 }
                 finally
                 {
@@ -7260,7 +7260,7 @@ class PluginUserSettings
 {
     public double LeftPanelProportion { get; set; } = 0.30;
     public double RightPanelProportion { get; set; } = 0.35;
-    public int PreviewHeight { get; set; } = 64;
+    public int PreviewHeight { get; set; } = 56;
     public int? DefaultTimezoneOffset { get; set; } = null;
     public string DefaultPrefix { get; set; } = null;
     public string DefaultSuffix { get; set; } = null;
