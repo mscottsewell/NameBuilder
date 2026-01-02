@@ -118,20 +118,20 @@ function Get-NuspecDeps([string]$NuspecPath) {
 $repoRoot = (Resolve-Path -Path $PSScriptRoot).Path
 
 if ($BuildLocal) {
-    $pack = Join-Path $repoRoot "pack-nuget.ps1"
-    if (-not (Test-Path $pack)) {
-        throw "pack-nuget.ps1 not found at $pack"
+    $build = Join-Path $repoRoot "build.ps1"
+    if (-not (Test-Path $build)) {
+        throw "build.ps1 not found at $build"
     }
 
-    Write-Info "Building local nupkg via pack-nuget.ps1 (safe defaults)..."
-    & pwsh -NoProfile -File $pack -Configuration $Configuration -SkipDeploy -SkipVersionBump -SkipPluginRebuildIfUnchanged | Out-Host
+    Write-Info "Building local nupkg via build.ps1 (safe defaults)..."
+    & pwsh -NoProfile -File $build -Configuration $Configuration -Pack -SkipDeploy -SkipVersionBump -SkipPluginFileVersionBump -SkipPluginRebuildIfUnchanged | Out-Host
 }
 
 if (-not $LocalNupkgPath) {
     $glob = Join-Path $repoRoot "artifacts\nuget\$PackageId.*.nupkg"
     $local = Get-ChildItem $glob -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if (-not $local) {
-        throw "No local nupkg found matching $glob. Run: pwsh -File .\\pack-nuget.ps1"
+        throw "No local nupkg found matching $glob. Run: pwsh -File .\\build.ps1 -Pack"
     }
     $LocalNupkgPath = $local.FullName
 }

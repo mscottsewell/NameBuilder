@@ -194,7 +194,7 @@ Need deeper schema detail? See [docs/USAGE.md](docs/USAGE.md) or the upstream Do
 ## Packaging for the XrmToolBox Store
 
 1. Produce a Release build (`pwsh -File .\build.ps1 -Configuration Release`).
-2. Run `pwsh -File .\pack-nuget.ps1` to create `artifacts\nuget\NameBuilderConfigurator.<version>.nupkg`.
+2. Run `pwsh -File .\build.ps1 -Pack` to create `artifacts\nuget\NameBuilderConfigurator.<version>.nupkg`.
 3. Submit the package via the [Publishing a plug-in](https://github.com/MscrmTools/XrmToolBox/wiki/Publishing-a-plugin) process (supply metadata, icons, changelog, etc.).
 
 ## Support & License

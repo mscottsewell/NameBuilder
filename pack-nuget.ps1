@@ -2,15 +2,33 @@ param(
     [ValidateSet('Debug','Release')]
     [string]$Configuration = "Release",
 
+    # Print what would happen and exit with no changes.
+    [switch]$DryRun,
+
+    # Build/pack toggles
+    [Alias('BuildOnly')]
+    [switch]$NoPack,
+
+    [Alias('PackOnly')]
+    [switch]$NoBuild,
+
+    # Component selection (mirrors repo-root build.ps1)
+    [switch]$PluginOnly,
+    [switch]$ConfiguratorOnly,
+
     [string]$NugetSource = "https://api.nuget.org/v3/index.json",
     [string]$NugetApiKey = $env:NUGET_API_KEY,
 
     # Only push to NuGet when explicitly requested.
     [switch]$Push,
     [switch]$SkipPush,
+    [Alias('NoDeploy')]
     [switch]$SkipDeploy,
     [switch]$SkipVersionBump,
     [switch]$SkipPluginRebuildIfUnchanged,
+
+    # For build-only flows you may want to avoid modifying plugin version metadata.
+    [switch]$SkipPluginFileVersionBump,
 
     [string]$XrmToolBoxPluginsPath = "$env:APPDATA\MscrmTools\XrmToolBox\Plugins"
 )
@@ -24,8 +42,185 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if ($PluginOnly -and $ConfiguratorOnly) {
+    throw 'Specify only one of -PluginOnly or -ConfiguratorOnly.'
+}
+
+if ($NoBuild -and $NoPack) {
+    Write-Warning 'Both -NoBuild and -NoPack were provided; nothing to do.'
+    return
+}
+
+if ($NoPack -and $Push) {
+    throw 'Cannot use -Push when -NoPack is specified.'
+}
+
+$doBuild = -not $NoBuild
+$doPack = -not $NoPack
+
+$buildPlugin = -not $ConfiguratorOnly
+$buildConfigurator = -not $PluginOnly
+
+if ($doPack -and -not $buildConfigurator) {
+    throw 'Packing is only supported for the configurator package; remove -PluginOnly or add -ConfiguratorOnly.'
+}
+
 function Write-Info($message) {
     Write-Host $message -ForegroundColor Cyan
+}
+
+function Get-AssemblyFileVersionFromAssemblyInfo {
+    param([string]$AssemblyInfoPath)
+
+    if (-not (Test-Path $AssemblyInfoPath)) {
+        throw "AssemblyInfo not found at $AssemblyInfoPath"
+    }
+
+    $content = Get-Content -Path $AssemblyInfoPath -Raw
+    $match = [regex]::Match($content, '(?m)^\s*\[assembly:\s*AssemblyFileVersion\("(?<ver>[^"]+)"\)\]')
+    if (-not $match.Success) {
+        throw "AssemblyFileVersion attribute not found in $AssemblyInfoPath"
+    }
+
+    return $match.Groups['ver'].Value
+}
+
+function Get-FileVersionInfoSafe {
+    param([string]$Path)
+
+    if (-not $Path -or -not (Test-Path $Path)) {
+        return $null
+    }
+
+    try {
+        return [System.Diagnostics.FileVersionInfo]::GetVersionInfo($Path)
+    } catch {
+        return $null
+    }
+}
+
+function Write-PluginVersionReport {
+    param(
+        [string]$PluginAssemblyInfo,
+        [string]$PluginBinDll,
+        [string]$PluginAssetsDll,
+        [string]$RebuildDecision
+    )
+
+    Write-Info "Plugin rebuild decision: $RebuildDecision"
+
+    try {
+        $asmVer = Get-AssemblyVersionFromAssemblyInfo -AssemblyInfoPath $PluginAssemblyInfo
+        $fileVer = Get-AssemblyFileVersionFromAssemblyInfo -AssemblyInfoPath $PluginAssemblyInfo
+        Write-Info "Plugin AssemblyInfo: AssemblyVersion=$asmVer AssemblyFileVersion=$fileVer"
+    } catch {
+        Write-Warning "Plugin AssemblyInfo: $($_.Exception.Message)"
+    }
+
+    $binInfo = Get-FileVersionInfoSafe -Path $PluginBinDll
+    if ($binInfo) {
+        Write-Info "Plugin binary (bin): $PluginBinDll"
+        Write-Info "  FileVersion=$($binInfo.FileVersion) ProductVersion=$($binInfo.ProductVersion)"
+    }
+
+    if ($PluginAssetsDll -and (Test-Path $PluginAssetsDll)) {
+        $assetInfo = Get-FileVersionInfoSafe -Path $PluginAssetsDll
+        if ($assetInfo) {
+            Write-Info "Plugin binary (assets): $PluginAssetsDll"
+            Write-Info "  FileVersion=$($assetInfo.FileVersion) ProductVersion=$($assetInfo.ProductVersion)"
+        }
+    }
+}
+
+function Write-DryRunPlan {
+    param(
+        [string]$RepoRoot,
+        [string]$ConfigDir,
+        [string]$PluginDir,
+        [string]$ConfigAssemblyInfo,
+        [string]$PluginAssemblyInfo,
+        [bool]$DoBuild,
+        [bool]$DoPack,
+        [bool]$BuildPlugin,
+        [bool]$BuildConfigurator,
+        [bool]$SkipPluginBuild,
+        [bool]$PluginHasChanges,
+        [string]$Configuration,
+        [bool]$SkipVersionBump,
+        [bool]$SkipPluginFileVersionBump,
+        [bool]$SkipDeploy,
+        [bool]$Push,
+        [bool]$SkipPush,
+        [string]$NugetSource
+    )
+
+    Write-Host "" 
+    Write-Host "=== DRY RUN (no changes) ===" -ForegroundColor Yellow
+    Write-Info "RepoRoot: $RepoRoot"
+    Write-Info "Configuration: $Configuration"
+    Write-Info "Mode: DoBuild=$DoBuild DoPack=$DoPack"
+    Write-Info "Scope: BuildPlugin=$BuildPlugin BuildConfigurator=$BuildConfigurator"
+
+    $willPush = $Push -and (-not $SkipPush)
+    Write-Info "NuGet push: $willPush (Push=$Push SkipPush=$SkipPush)"
+    if ($willPush) { Write-Info "NuGet source: $NugetSource" }
+
+    $willDeploy = $BuildConfigurator -and $DoBuild -and (-not $SkipDeploy)
+    Write-Info "Deploy to XrmToolBox: $willDeploy (SkipDeploy=$SkipDeploy)"
+
+    # Versioning preview
+    try {
+        $cfgCurrent = Get-AssemblyVersionFromAssemblyInfo -AssemblyInfoPath $ConfigAssemblyInfo
+        $cfgNext = if ($DoBuild -and $BuildConfigurator -and (-not $SkipVersionBump)) { Increment-Revision -VersionString $cfgCurrent } else { $cfgCurrent }
+        Write-Info "Configurator version: $cfgCurrent -> $cfgNext"
+    } catch {
+        Write-Warning "Configurator version: unable to read ($($_.Exception.Message))"
+    }
+
+    try {
+        $plugAsmCurrent = Get-AssemblyVersionFromAssemblyInfo -AssemblyInfoPath $PluginAssemblyInfo
+        $plugFileCurrent = Get-AssemblyFileVersionFromAssemblyInfo -AssemblyInfoPath $PluginAssemblyInfo
+        $plugFileNext = if ($DoBuild -and $BuildPlugin -and (-not $SkipVersionBump) -and (-not $SkipPluginFileVersionBump) -and $PluginHasChanges) { Increment-Revision -VersionString $plugFileCurrent } else { $plugFileCurrent }
+        Write-Info "Plugin AssemblyVersion: $plugAsmCurrent (unchanged)"
+        Write-Info "Plugin AssemblyFileVersion: $plugFileCurrent -> $plugFileNext"
+        Write-Info "Plugin change-detection: HasChanges=$PluginHasChanges SkipRebuildIfUnchanged=$SkipPluginBuild"
+    } catch {
+        Write-Warning "Plugin version: unable to read ($($_.Exception.Message))"
+    }
+
+    $assetsPluginDir = Join-Path $ConfigDir "Assets\DataversePlugin"
+    $pluginDll = Join-Path $PluginDir "bin\$Configuration\net462\NameBuilder.dll"
+    $configDll = Join-Path $ConfigDir "bin\$Configuration\NameBuilderConfigurator.dll"
+    $nuspecPath = Join-Path $ConfigDir "NameBuilderConfigurator.nuspec"
+    $outputDir = Join-Path $RepoRoot "artifacts\nuget"
+    Write-Info "Will ensure plugin payload under: $assetsPluginDir"
+
+    if ($DoBuild) {
+        if ($BuildPlugin -and (-not $SkipPluginBuild)) {
+            Write-Info "Would run: NameBuilderPlugin/build.ps1 (dotnet build)"
+        } elseif ($BuildPlugin) {
+            Write-Info "Would skip plugin build; would copy existing $pluginDll into assets if present"
+        }
+
+        if ($BuildConfigurator) {
+            Write-Info "Would run: NameBuilderConfigurator/build.ps1 (MSBuild)"
+        }
+    } else {
+        Write-Info "NoBuild: expects existing binaries"
+        Write-Info "  Plugin DLL expected: $pluginDll (or already in assets)"
+        Write-Info "  Configurator DLL expected: $configDll"
+    }
+
+    if ($DoPack) {
+        Write-Info "Would run: nuget.exe pack $nuspecPath -OutputDirectory $outputDir -BasePath $ConfigDir"
+    } else {
+        Write-Info "NoPack: would skip nuget pack"
+    }
+
+    Write-Info "Nuspec: $nuspecPath"
+    Write-Info "Output folder: $outputDir"
+    Write-Host "============================" -ForegroundColor Yellow
+    Write-Host ""
 }
 
 function Ensure-NugetExe {
@@ -185,14 +380,49 @@ $pluginAssemblyInfo = Join-Path $pluginDir "Properties\AssemblyInfo.cs"
 $pluginHasChanges = Test-PluginHasChanges -PluginPath "NameBuilderPlugin"
 $skipPluginBuild = $SkipPluginRebuildIfUnchanged -and (-not $pluginHasChanges)
 
-if (-not $SkipVersionBump) {
-    Update-ConfiguratorVersion -AssemblyInfoPath $configAssemblyInfo | Out-Null
-
-    if ($pluginHasChanges) {
-        Update-PluginFileVersion -AssemblyInfoPath $pluginAssemblyInfo | Out-Null
-    } else {
-        Write-Info "Plugin unchanged; skipping plugin file version increment"
+if ($DryRun) {
+    $dryRunArgs = @{
+        RepoRoot = $repoRoot
+        ConfigDir = $configDir
+        PluginDir = $pluginDir
+        ConfigAssemblyInfo = $configAssemblyInfo
+        PluginAssemblyInfo = $pluginAssemblyInfo
+        DoBuild = $doBuild
+        DoPack = $doPack
+        BuildPlugin = $buildPlugin
+        BuildConfigurator = $buildConfigurator
+        SkipPluginBuild = $skipPluginBuild
+        PluginHasChanges = $pluginHasChanges
+        Configuration = $Configuration
+        SkipVersionBump = [bool]$SkipVersionBump
+        SkipPluginFileVersionBump = [bool]$SkipPluginFileVersionBump
+        SkipDeploy = [bool]$SkipDeploy
+        Push = [bool]$Push
+        SkipPush = [bool]$SkipPush
+        NugetSource = $NugetSource
     }
+
+    Write-DryRunPlan @dryRunArgs
+
+    return
+}
+
+if ($doBuild -and -not $SkipVersionBump) {
+    if ($buildConfigurator) {
+        Update-ConfiguratorVersion -AssemblyInfoPath $configAssemblyInfo | Out-Null
+    }
+
+    if ($buildPlugin) {
+        if ($SkipPluginFileVersionBump) {
+            Write-Info "SkipPluginFileVersionBump enabled; leaving plugin version metadata unchanged."
+        } elseif ($pluginHasChanges) {
+            Update-PluginFileVersion -AssemblyInfoPath $pluginAssemblyInfo | Out-Null
+        } else {
+            Write-Info "Plugin unchanged; skipping plugin file version increment"
+        }
+    }
+} elseif (-not $doBuild) {
+    Write-Info "NoBuild enabled; skipping any version changes."
 } else {
     Write-Info "SkipVersionBump enabled; using existing AssemblyInfo versions."
 }
@@ -203,31 +433,68 @@ $pluginPdb = Join-Path $pluginDir "bin\$Configuration\net462\NameBuilder.pdb"
 $assetsPluginDir = Join-Path $configDir "Assets\DataversePlugin"
 New-Item -ItemType Directory -Force -Path $assetsPluginDir | Out-Null
 
-if (-not $skipPluginBuild) {
-    Write-Info "Building Plugin ($Configuration)..."
-    & pwsh -NoProfile -File (Join-Path $pluginDir "build.ps1") -Configuration $Configuration -Framework "net462" -Solution ".\NameBuilder.sln" -TargetFolder $assetsPluginDir -RelativeFallback (Join-Path $configDir "Assets\DataversePlugin")
+$assetsPluginDll = Join-Path $assetsPluginDir "NameBuilder.dll"
+$pluginDecision = $null
+
+if (-not $doBuild) {
+    $pluginDecision = 'NoBuild (reuse existing binaries)'
+} elseif ($buildPlugin -and (-not $skipPluginBuild)) {
+    $pluginDecision = 'Rebuild (plugin build will run)'
+} elseif ($buildPlugin -and $skipPluginBuild) {
+    $pluginDecision = 'Skip rebuild (no plugin changes detected)'
 } else {
-    Write-Info "Plugin unchanged; skipping plugin build (using existing binaries)"
-    if (-not (Test-Path $pluginDll)) {
-        throw "Plugin build output not found at $pluginDll (cannot skip build)."
-    }
-    Copy-Item -Path $pluginDll -Destination (Join-Path $assetsPluginDir "NameBuilder.dll") -Force
+    $pluginDecision = 'Not requested (ConfiguratorOnly)'
 }
 
-# Build Configurator
-Write-Info "Building Configurator ($Configuration)..."
-$cfgBuildArgs = @(
-    '-NoProfile','-File', (Join-Path $configDir 'build.ps1'),
-    '-Configuration', $Configuration
-)
-if ($SkipVersionBump) { $cfgBuildArgs += '-SkipVersionBump' }
-if ($SkipDeploy) { $cfgBuildArgs += '-SkipDeploy' }
+if ($buildConfigurator -or $doPack) {
+    # The configurator package expects the plugin payload in Assets/DataversePlugin.
+    if ($buildPlugin -and $doBuild -and (-not $skipPluginBuild)) {
+        Write-Info "Building Plugin ($Configuration)..."
+        & pwsh -NoProfile -File (Join-Path $pluginDir "build.ps1") -Configuration $Configuration -Framework "net462" -Solution ".\NameBuilder.sln" -TargetFolder $assetsPluginDir -RelativeFallback (Join-Path $configDir "Assets\DataversePlugin")
+    } else {
+        if ($skipPluginBuild) {
+            Write-Info "Plugin unchanged; skipping plugin build (using existing binaries)"
+        } elseif (-not $doBuild) {
+            Write-Info "NoBuild enabled; using existing plugin binaries"
+        }
 
-Push-Location $configDir
-try {
-    & pwsh @cfgBuildArgs
-} finally {
-    Pop-Location
+        if (Test-Path $pluginDll) {
+            Copy-Item -Path $pluginDll -Destination (Join-Path $assetsPluginDir "NameBuilder.dll") -Force
+            if (Test-Path $pluginPdb) {
+                Copy-Item -Path $pluginPdb -Destination (Join-Path $assetsPluginDir "NameBuilder.pdb") -Force
+            }
+        } elseif (-not (Test-Path (Join-Path $assetsPluginDir "NameBuilder.dll"))) {
+            throw "Plugin DLL not found at $pluginDll or $assetsPluginDir\\NameBuilder.dll. Run a build at least once or remove -NoBuild."
+        }
+    }
+} elseif ($buildPlugin -and $doBuild) {
+    # Plugin-only build.
+    Write-Info "Building Plugin ($Configuration)..."
+    & pwsh -NoProfile -File (Join-Path $pluginDir "build.ps1") -Configuration $Configuration -Framework "net462" -Solution ".\NameBuilder.sln" -TargetFolder $assetsPluginDir -RelativeFallback (Join-Path $configDir "Assets\DataversePlugin")
+}
+
+# Report plugin version metadata and binary versions (whether rebuilt or reused)
+Write-PluginVersionReport -PluginAssemblyInfo $pluginAssemblyInfo -PluginBinDll $pluginDll -PluginAssetsDll $assetsPluginDll -RebuildDecision $pluginDecision
+
+# Build Configurator
+if ($buildConfigurator -and $doBuild) {
+    Write-Info "Building Configurator ($Configuration)..."
+    $cfgBuildArgs = @(
+        '-NoProfile','-File', (Join-Path $configDir 'build.ps1'),
+        '-Configuration', $Configuration
+    )
+    # Root script owns version bumping; prevent double-bump.
+    $cfgBuildArgs += '-SkipVersionBump'
+    if ($SkipDeploy) { $cfgBuildArgs += '-SkipDeploy' }
+
+    Push-Location $configDir
+    try {
+        & pwsh @cfgBuildArgs
+    } finally {
+        Pop-Location
+    }
+} elseif ($buildConfigurator -and $doPack) {
+    Write-Info "NoBuild enabled; expecting existing configurator build output for packing."
 }
 
 # Determine version for NuGet package
@@ -242,10 +509,15 @@ if (-not (Test-Path $nuspecPath)) {
     throw "Nuspec not found at $nuspecPath"
 }
 
-Write-Info "Packing NameBuilderConfigurator v$version..."
-& $nugetExe pack $nuspecPath -Version $version -OutputDirectory $outputDir -BasePath $configDir -NoPackageAnalysis
-if ($LASTEXITCODE -ne 0) {
-    throw "nuget.exe pack failed with exit code $LASTEXITCODE"
+if ($doPack) {
+    Write-Info "Packing NameBuilderConfigurator v$version..."
+    & $nugetExe pack $nuspecPath -Version $version -OutputDirectory $outputDir -BasePath $configDir -NoPackageAnalysis
+    if ($LASTEXITCODE -ne 0) {
+        throw "nuget.exe pack failed with exit code $LASTEXITCODE"
+    }
+} else {
+    Write-Info "NoPack enabled; skipping NuGet packaging."
+    return
 }
 
 $packagePath = Join-Path $outputDir "NameBuilderConfigurator.$version.nupkg"
