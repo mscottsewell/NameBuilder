@@ -1370,26 +1370,23 @@ namespace NameBuilderConfigurator
 
             // Preview spanning middle+right, but only at the top of the right side
             var previewPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8) };
-            var previewLabel = new System.Windows.Forms.Label {
+            var previewLabel = new System.Windows.Forms.Label
+            {
                 Text = "Live Preview:",
-                Location = new Point(5, 5),
                 AutoSize = true,
+                Dock = DockStyle.Top,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
             previewPanel.Controls.Add(previewLabel);
             previewTextBox = new TextBox
             {
-                Location = new Point(5, 30),
-                Width = previewPanel.ClientSize.Width - 16,
-                Height = 28,
+                Dock = DockStyle.Fill,
                 Multiline = true,
                 ReadOnly = true,
                 BackColor = Color.LightYellow,
                 Font = new Font("Segoe UI", 11F, FontStyle.Regular),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 WordWrap = true
             };
-            previewPanel.Resize += (s, e) => previewTextBox.Width = previewPanel.ClientSize.Width - 16;
             helpToolTip.SetToolTip(previewTextBox, "Live example of the assembled name for the selected sample record.");
             previewPanel.Controls.Add(previewTextBox);
 
