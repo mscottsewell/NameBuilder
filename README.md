@@ -1,6 +1,9 @@
-<img width="1600" height="150" alt="image" src="https://github.com/user-attachments/assets/e538d3ac-280d-4a8a-956d-239f8f7e7fdf" />
+<img width="1600" alt="image" src="https://github.com/user-attachments/assets/e538d3ac-280d-4a8a-956d-239f8f7e7fdf" />
 
-NameBuilder automatically builds a record's primary name (usually the `name` field) from other fields on the record.
+---
+
+**NameBuilder** builds a record's primary name from other fields on the record using a fast, configuable, flexible and easy-to-deploy Dataverse plugin. <br> **The NameBuilder Configurator** give you a simple way to construct, preview and deploy the plugin from within the XrmToolBox - without writing code.
+
 <img width="1258" alt="image" src="https://github.com/user-attachments/assets/ce3dfec3-f4a2-4e7b-9281-8d3df2254ec2" />
 
 ## Why use it?
