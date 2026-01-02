@@ -50,7 +50,7 @@ Restart XrmToolBox and the plug-in appears in the tool list.
 
 | Area | Description |
 | --- | --- |
-| **Ribbon** | Top toolbar with buttons: Load Entities (reload metadata), Retrieve Configured Entity (pull from Dataverse), Register Plug-in (verify/deploy), Import JSON, Export JSON, Copy JSON, and Publish Configuration. Hover over each button for a tooltip. |
+| **Ribbon** | Top toolbar with buttons: Load Metadata, Retrieve Configured Entity (pull from Dataverse), Import file, Export file, Copy to clipboard, and Publish Configuration. Hover over each button for a tooltip. |
 | **Solution Dropdown** | Optional filter to scope entities to a specific Dataverse solution. Display names are shown; selecting a solution loads only entities in that solution. Choose "(Default)" to see all entities. |
 | **Entity Dropdown** | Select the Dataverse entity whose NameBuilder pattern you want to edit. Populates from the filtered solution or all available entities. |
 | **View Dropdown** | Optional view selector. Personal views are listed first, then a separator, then system views. The separator is non-selectable. When set, the Sample Record dropdown only shows rows from that view. Leave blank to show all records. |
@@ -99,7 +99,7 @@ The property pane now explains the evaluation order via the behavior summary box
 ### 6.1 Build a configuration from scratch
 
 1. **Connect** via XrmToolBox connection wizard.
-2. **Load Entities** by clicking the ribbon button (metadata and views load automatically). This fetches all solutions, entities, views, and sample records from Dataverse.
+2. **Load Metadata** by clicking the ribbon button (metadata and views load automatically). This fetches all solutions, entities, views, and sample records from Dataverse.
 3. (Optional) **Filter by Solution** using the Solution dropdown to narrow the entity list.
 4. **Choose an Entity** from the Entity dropdown to begin configuring its NameBuilder pattern. The tool automatically fetches the published configuration for that entity (prefers the Update step, falls back to the Create step) and reports if none is found.
 5. (Optional) **Choose a View** to restrict which sample records appear in the Sample Record dropdown. Personal views are listed first; a non-selectable separator precedes the system views.
@@ -232,20 +232,20 @@ Defaults are applied automatically when new blocks are created but can also be m
 
 | Symptom | Resolution |
 | --- | --- |
-| "NameBuilder plug-in must be installed first" dialog | Click **Register Plug-in** on the ribbon, browse to `Assets\DataversePlugin\NameBuilder.dll`, and confirm the deployment. The tool will deploy the assembly and create necessary plug-in types. Retry after deployment. |
-| Entities fail to load | Verify your XrmToolBox connection has Customizer/System Administrator privileges. Click **Load Entities** again to retry. |
+| "NameBuilder plug-in must be installed first" dialog | Click **Publish Configuration**. When prompted, choose the option to update/install the server plug-in first and confirm the deployment (the default DLL is typically `Assets\DataversePlugin\NameBuilder.dll`). Retry after deployment. |
+| Entities fail to load | Verify your XrmToolBox connection has Customizer/System Administrator privileges. Click **Load Metadata** again to retry. |
 | Sample records don't appear | Ensure a View is selected (if required) and that the view contains at least one row. Change the Sample Record dropdown to refresh the list. |
-| Publish button is disabled | Ensure: (1) an entity is selected, (2) at least one field block exists, (3) the NameBuilder plug-in is registered (use **Register Plug-in**). |
-| JSON import errors | Validate the file against the schema in the [Dataverse-NameBuilder Docs](https://github.com/mscottsewell/Dataverse-NameBuilder/tree/main/Docs) folder. The configurator expects exact property names and casing (e.g., `targetField`, not `targetfield`). |
+| Publish button is disabled | Ensure: (1) an entity is selected, (2) at least one field block exists, (3) the tool has verified the NameBuilder plug-in type in Dataverse (publish will prompt to install/repair if missing). |
+| JSON import errors | Validate the file against the schema in [../../NameBuilderPlugin/Docs](../../NameBuilderPlugin/Docs). The configurator expects exact property names and casing (e.g., `targetField`, not `targetfield`). |
 | Publish fails | Check that: (1) you have Create/Update step registrations for the entity, (2) your connection has privileges to update `sdkmessageprocessingstep` rows, (3) the target field exists on the entity. Enable tracing in Global Configuration to capture plug-in-side diagnostics. |
 | Multiple steps exist for the same entity | The tool will detect and update the first existing step, logging a diagnostic warning. Review your environment for duplicate NameBuilder steps and remove extras manually via the Plugin Registration Tool. |
 | Solution selection not appearing | Verify at least one unmanaged solution exists in your environment. Managed solutions cannot contain new plugin registrations and are filtered from the selection dialog. |
 | Truncation not working as expected | Verify `maxLength` is set on the global config or individual field, and `truncationIndicator` (default `...`) is configured. Test with a sample record that exceeds the limit. |
 | Timezone offset not applied | Verify the field type is `date` or `datetime` and `timezoneOffsetHours` is set on the field (not 0). Timezone adjustments only apply to date/time types. |
-| Missing attributes in the Available Attributes list | Click **Load Entities** to refresh metadata. Some attributes may be hidden or marked as non-searchable in metadata; these still appear in the list but may not be queryable. |
+| Missing attributes in the Available Attributes list | Click **Load Metadata** to refresh metadata. Some attributes may be hidden or marked as non-searchable in metadata; these still appear in the list but may not be queryable. |
 
 ## 10. Additional Resources
 
-- [Dataverse-NameBuilder repository](https://github.com/mscottsewell/Dataverse-NameBuilder) – server-side plug-in source & Docs.
-- [Dataverse-NameBuilder Docs folder](https://github.com/mscottsewell/Dataverse-NameBuilder/tree/main/Docs) – JSON schema, deployment instructions, advanced formatting rules.
+- [NameBuilder plug-in docs](../../NameBuilderPlugin/Docs) – JSON schema, deployment notes, formatting rules, and examples.
+- [Dataverse-NameBuilder repository](https://github.com/mscottsewell/Dataverse-NameBuilder) – upstream reference.
 - [XrmToolBox wiki – Publishing a plug-in](https://github.com/MscrmTools/XrmToolBox/wiki/Publishing-a-plugin) – guidance for distributing this configurator once you customize it.

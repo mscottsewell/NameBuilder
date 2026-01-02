@@ -1,7 +1,7 @@
 # NameBuilder Configurator – XrmToolBox Plugin
 
 > Visual designer for the [NameBuilder](../NameBuilderPlugin) Dataverse plug-in. Connect through XrmToolBox, assemble name patterns, preview the output, and publish JSON back to Create/Update steps without writing code.
-<img width="1591" height="1037" alt="image" src="https://github.com/user-attachments/assets/8a509dbe-70af-49e1-b634-0a037c92006d" />
+<img width="1591" alt="image" src="https://github.com/user-attachments/assets/8a509dbe-70af-49e1-b634-0a037c92006d" />
 
 ## Table of Contents
 
@@ -104,7 +104,7 @@ pwsh -File .\build.ps1 -Configuration Release -Pack
 ## Getting Started
 
 1. **Connect** via the XrmToolBox connection wizard.
-2. **Load Entities** to populate metadata, views, and sample records.
+2. **Load Metadata** to populate metadata, views, and sample records.
 3. **Select an entity** (and optional view/sample record).
 4. **Build the pattern** by double-clicking attributes, configuring block properties, and observing the live preview/JSON tabs.
 5. **Publish, export, or copy** the resulting JSON.
@@ -115,7 +115,7 @@ Every ribbon button, dropdown, and property control now exposes a tooltip—hove
 
 | Area | Description |
 | --- | --- |
-| **Ribbon** | Load entities, retrieve configured entities, import/export/copy JSON, update the NameBuilder assembly, and publish. Tooltips summarize each command. |
+| **Ribbon** | Load metadata, retrieve configured entities, import/export/copy JSON, and publish. Tooltips summarize each command. |
 | **Solution dropdown** | Filter entities by Dataverse solution (optional). Display names shown; solution IDs stored for lookups. |
 | **Entity explorer** | Entity picker, optional view selector (personal views first, separator, then system views), sample record dropdown, and the Available Attributes list (double-click to add). |
 | **Field blocks** | Ordered list with drag handles (▲/▼ buttons), delete icons, and inline summary showing attribute name, type, and key properties. |
@@ -157,9 +157,10 @@ Every ribbon button, dropdown, and property control now exposes a tooltip—hove
 2. Select whether to update the Create step, Update step, or both.
 3. The tool writes the JSON + filtering attributes and reports the touched steps in the status bar.
 4. The selected **Plugin Solution** will be updated with the plugin and the steps.
-<img width="1591" height="1038" alt="image" src="https://github.com/user-attachments/assets/24c1242c-0823-43f4-ac07-8341c052c7f6" />
 
-<img width="1275" height="595" alt="image" src="https://github.com/user-attachments/assets/abbead87-396f-494b-8dbc-490a9ad5d9f1" />
+<img width="1591" alt="image" src="https://github.com/user-attachments/assets/24c1242c-0823-43f4-ac07-8341c052c7f6" />
+
+<img width="1275" alt="image" src="https://github.com/user-attachments/assets/abbead87-396f-494b-8dbc-490a9ad5d9f1" />
 
 ## Defaults, Fallbacks, and Conditions
 
@@ -172,7 +173,7 @@ Need deeper schema detail? See [Docs/USAGE.md](Docs/USAGE.md) and [../NameBuilde
 
 ## Publishing & Deployment
 
-- The control confirms that the NameBuilder assembly exists when the connection updates. Use **Update NameBuilder Plug-in** to install/repair it.
+- The control confirms that the NameBuilder assembly exists when the connection updates. If it is missing, publishing will prompt you to install/repair the server plug-in.
 - **Solution selection**: When installing the plugin or publishing configurations, you'll be prompted to select an unmanaged solution. This ensures all NameBuilder components (assemblies and steps) are organized within your chosen solution for ALM workflows.
 - **Duplicate prevention**: The tool automatically detects existing steps for each entity/message combination and updates them rather than creating duplicates. If multiple steps exist, a diagnostic warning is logged.
 - **Component management**: Plugin assemblies and SDK message processing steps are automatically added to your selected solution if not already present.
@@ -190,10 +191,10 @@ Need deeper schema detail? See [Docs/USAGE.md](Docs/USAGE.md) and [../NameBuilde
 
 | Symptom | Resolution |
 | --- | --- |
-| “NameBuilder plug-in must be installed first.” | Deploy/Register the NameBuilder assembly (use **Update NameBuilder Plug-in**) and reload. |
-| Entities fail to load | Verify connection privileges and click **Load Entities** again. |
+| “NameBuilder plug-in must be installed first.” | Click **Publish Configuration** and follow the prompt to install/repair the server plug-in, then retry publishing. |
+| Entities fail to load | Verify connection privileges and click **Load Metadata** again. |
 | Publish button disabled | Ensure an entity is selected, at least one block exists, and the NameBuilder plug-in type is loaded. |
-| JSON import errors | Validate the file against the schema documented in the Dataverse-NameBuilder repo. |
+| JSON import errors | Validate the file against the schema in [../NameBuilderPlugin/Docs](../NameBuilderPlugin/Docs) (especially `plugin-config.schema.json`). |
 
 ## Packaging for the XrmToolBox Store
 
