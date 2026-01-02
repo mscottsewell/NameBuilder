@@ -192,7 +192,8 @@ function Update-ConfiguratorVersion {
     }
 
     $content = Get-Content -Path $AssemblyInfoPath -Raw
-    $match = [regex]::Match($content, 'AssemblyVersion\("(?<ver>[^\"]+)"\)')
+    # Match only the actual assembly attribute line (avoid commented examples like 1.0.*)
+    $match = [regex]::Match($content, '(?m)^\s*\[assembly:\s*AssemblyVersion\("(?<ver>[^\"]+)"\)\]')
     if (-not $match.Success) {
         throw "AssemblyVersion attribute not found in $AssemblyInfoPath"
     }
@@ -200,9 +201,17 @@ function Update-ConfiguratorVersion {
     $current = $match.Groups['ver'].Value
     $next = Increment-Revision -VersionString $current
 
-    # Keep AssemblyVersion and AssemblyFileVersion in sync for the configurator
-    $content = $content -replace 'AssemblyVersion\("[^\"]*"\)', "AssemblyVersion(`"$next`")"
-    $content = $content -replace 'AssemblyFileVersion\("[^\"]*"\)', "AssemblyFileVersion(`"$next`")"
+    # Keep AssemblyVersion and AssemblyFileVersion in sync for the configurator (attribute lines only)
+    $content = [regex]::Replace(
+        $content,
+        '(?m)^\s*\[assembly:\s*AssemblyVersion\("[^\"]*"\)\]',
+        ('[assembly: AssemblyVersion("' + $next + '")]')
+    )
+    $content = [regex]::Replace(
+        $content,
+        '(?m)^\s*\[assembly:\s*AssemblyFileVersion\("[^\"]*"\)\]',
+        ('[assembly: AssemblyFileVersion("' + $next + '")]')
+    )
 
     Set-Content -Path $AssemblyInfoPath -Value $content -Encoding ascii
     Write-Info "Incremented Configurator version: $current -> $next"
@@ -219,7 +228,7 @@ function Update-PluginFileVersion {
 
     $content = Get-Content -Path $AssemblyInfoPath -Raw
 
-    $asmVersionMatch = [regex]::Match($content, 'AssemblyVersion\("(?<ver>[^\"]+)"\)')
+    $asmVersionMatch = [regex]::Match($content, '(?m)^\s*\[assembly:\s*AssemblyVersion\("(?<ver>[^\"]+)"\)\]')
     if (-not $asmVersionMatch.Success) {
         throw "AssemblyVersion attribute not found in $AssemblyInfoPath"
     }
@@ -228,7 +237,7 @@ function Update-PluginFileVersion {
     if ($asmCurrent -ne $PluginFixedAssemblyVersion) {
         throw "Plugin AssemblyVersion must remain $PluginFixedAssemblyVersion (found $asmCurrent). Update the plugin file version only."
     }
-    $fileVersionMatch = [regex]::Match($content, 'AssemblyFileVersion\("(?<ver>[^\"]+)"\)')
+    $fileVersionMatch = [regex]::Match($content, '(?m)^\s*\[assembly:\s*AssemblyFileVersion\("(?<ver>[^\"]+)"\)\]')
     if (-not $fileVersionMatch.Success) {
         throw "AssemblyFileVersion attribute not found in $AssemblyInfoPath"
     }
@@ -236,11 +245,15 @@ function Update-PluginFileVersion {
     $current = $fileVersionMatch.Groups['ver'].Value
     $next = Increment-Revision -VersionString $current
 
-    # Preserve AssemblyVersion; only bump AssemblyFileVersion
-    $content = $content -replace 'AssemblyFileVersion\("[^\"]*"\)', "AssemblyFileVersion(`"$next`")"
+    # Preserve AssemblyVersion; only bump AssemblyFileVersion (attribute line only)
+    $content = [regex]::Replace(
+        $content,
+        '(?m)^\s*\[assembly:\s*AssemblyFileVersion\("[^\"]*"\)\]',
+        ('[assembly: AssemblyFileVersion("' + $next + '")]')
+    )
 
     # Safety: verify AssemblyVersion is still fixed after the edit
-    $asmAfterMatch = [regex]::Match($content, 'AssemblyVersion\("(?<ver>[^\"]+)"\)')
+    $asmAfterMatch = [regex]::Match($content, '(?m)^\s*\[assembly:\s*AssemblyVersion\("(?<ver>[^\"]+)"\)\]')
     if (-not $asmAfterMatch.Success -or $asmAfterMatch.Groups['ver'].Value -ne $PluginFixedAssemblyVersion) {
         $found = if ($asmAfterMatch.Success) { $asmAfterMatch.Groups['ver'].Value } else { "(missing)" }
         throw "Plugin AssemblyVersion must remain $PluginFixedAssemblyVersion (found $found) after version update."
@@ -521,6 +534,15 @@ New-Item -ItemType Directory -Force -Path $assetsPluginDir | Out-Null
 
 $assetsPluginDll = Join-Path $assetsPluginDir "NameBuilder.dll"
 $pluginDecision = $null
+
+# If we were asked to skip the plugin rebuild but there are no binaries available yet,
+# force a rebuild so packing/deploy doesn't fail on a clean workspace.
+if ($skipPluginBuild -and $doBuild -and $buildPlugin) {
+    if (-not (Test-Path $pluginDll) -and -not (Test-Path $assetsPluginDll)) {
+        Write-Warning "Plugin binaries not found; forcing plugin rebuild despite -SkipPluginRebuildIfUnchanged."
+        $skipPluginBuild = $false
+    }
+}
 
 if (-not $doBuild) {
     $pluginDecision = 'NoBuild (reuse existing binaries)'

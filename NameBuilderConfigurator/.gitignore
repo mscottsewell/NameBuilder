@@ -34,6 +34,9 @@ artifacts/
 *.config
 *.dll.config
 
+# app.config is a project input and must be committed.
+!app.config
+
 # Test results
 TestResult*/
 *.VisualState.xml
