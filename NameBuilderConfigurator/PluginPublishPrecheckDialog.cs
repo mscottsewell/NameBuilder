@@ -88,40 +88,19 @@ namespace NameBuilderConfigurator
         {
             var sb = new StringBuilder();
 
-            sb.AppendLine($"Environment: {info.EnvironmentName ?? "(unknown)"}");
+            sb.AppendLine($"Environment: {info.EnvironmentName ?? ""}");
             sb.AppendLine();
 
             sb.AppendLine("Installed plug-in (Dataverse):");
             sb.AppendLine($"  Present:        {(info.IsInstalled ? "Yes" : "No")}");
-            sb.AppendLine($"  Assembly name:  {info.InstalledAssemblyName ?? "(unknown)"}");
-            sb.AppendLine($"  Version field:  {info.InstalledVersion ?? "(unknown)"}");
-            sb.AppendLine($"  DLL Assembly:   {info.InstalledAssemblyVersion ?? "(unknown)"}");
-            sb.AppendLine($"  DLL File:       {info.InstalledFileVersion ?? "(unknown)"}");
-            sb.AppendLine($"  Modified on:    {(info.InstalledModifiedOn.HasValue ? info.InstalledModifiedOn.Value.ToString("u") : "(unknown)")}");
+            sb.AppendLine($"  Assembly name:  {info.InstalledAssemblyName ?? ""}");
+            sb.AppendLine($"  DLL Assembly:   {info.InstalledAssemblyVersion ?? ""}");
+            sb.AppendLine($"  DLL File:       {info.InstalledFileVersion ?? ""}");
             sb.AppendLine();
 
             sb.AppendLine("Packaged plug-in (local):");
-            sb.AppendLine($"  Path:           {info.LocalAssemblyPath ?? "(not found)"}");
-            sb.AppendLine($"  Assembly ver:   {info.LocalAssemblyVersion ?? "(unknown)"}");
-            sb.AppendLine($"  File ver:       {info.LocalFileVersion ?? "(unknown)"}");
-            sb.AppendLine();
-
-            sb.AppendLine("Comparison:");
-            sb.AppendLine($"  Result:         {info.ComparisonSummary ?? "(unknown)"}");
-
-            if (!string.IsNullOrWhiteSpace(info.WarningOrNote))
-            {
-                sb.AppendLine();
-                sb.AppendLine("Note:");
-                sb.AppendLine($"  {info.WarningOrNote}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(info.ErrorMessage))
-            {
-                sb.AppendLine();
-                sb.AppendLine("Error:");
-                sb.AppendLine($"  {info.ErrorMessage}");
-            }
+            sb.AppendLine($"  Assembly ver:   {info.LocalAssemblyVersion ?? ""}");
+            sb.AppendLine($"  File ver:       {info.LocalFileVersion ?? ""}");
 
             return sb.ToString();
         }
