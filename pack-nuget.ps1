@@ -5,6 +5,8 @@ param(
     [string]$NugetSource = "https://api.nuget.org/v3/index.json",
     [string]$NugetApiKey = $env:NUGET_API_KEY,
 
+    # Only push to NuGet when explicitly requested.
+    [switch]$Push,
     [switch]$SkipPush,
     [switch]$SkipDeploy,
     [switch]$SkipVersionBump,
@@ -17,7 +19,8 @@ param(
 # -SkipVersionBump keeps AssemblyInfo versions unchanged (useful for CI repeatability).
 # Plugin AssemblyVersion stays unchanged; only AssemblyFileVersion is bumped (and only if plugin changed).
 # -SkipDeploy prevents local XrmToolBox deployment.
-# -SkipPush prevents pushing the nupkg to NuGet.
+# -Push enables pushing the nupkg to NuGet.
+# -SkipPush forces skipping the NuGet push (overrides -Push).
 
 $ErrorActionPreference = "Stop"
 
@@ -250,7 +253,7 @@ if (-not (Test-Path $packagePath)) {
     throw "NuGet package not created at $packagePath"
 }
 
-if (-not $SkipPush) {
+if ($Push -and -not $SkipPush) {
     if ([string]::IsNullOrWhiteSpace($NugetApiKey)) {
         throw "NuGet API key not provided. Supply -NugetApiKey or set NUGET_API_KEY."
     }
@@ -263,5 +266,5 @@ if (-not $SkipPush) {
 
     Write-Info "Package pushed successfully."
 } else {
-    Write-Info "SkipPush enabled; package available at $packagePath"
+    Write-Info "NuGet push skipped; package available at $packagePath"
 }
