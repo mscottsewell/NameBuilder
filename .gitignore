@@ -3,3 +3,7 @@
 **/.vs/
 **/artifacts/
 .nuget/
+
+# Generated plugin payload copied into configurator assets
+NameBuilderConfigurator/Assets/DataversePlugin/*.dll
+NameBuilderConfigurator/Assets/DataversePlugin/*.pdb
