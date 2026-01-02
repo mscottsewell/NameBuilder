@@ -1087,7 +1087,7 @@ namespace NameBuilderConfigurator
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Horizontal,
-                SplitterDistance = Math.Max(30, Math.Min(initialSettings.PreviewHeight, 100))
+                SplitterDistance = Math.Max(64, Math.Min(initialSettings.PreviewHeight, 80))
             };
 
             // Bottom of right side: split between middle and right panels
@@ -1380,7 +1380,8 @@ namespace NameBuilderConfigurator
             previewPanel.Controls.Add(previewLabel);
             previewTextBox = new TextBox
             {
-                Dock = DockStyle.Fill,
+                Dock = DockStyle.Top,
+                Height = 28,
                 Multiline = true,
                 ReadOnly = true,
                 BackColor = Color.LightYellow,
@@ -1430,7 +1431,7 @@ namespace NameBuilderConfigurator
             {
                 if (isRestoringLayout || !allowPersistence) return;
                 var st = PluginUserSettings.Load();
-                st.PreviewHeight = Math.Max(20, Math.Min(rightTopBottomSplitter.SplitterDistance, 100));
+                st.PreviewHeight = Math.Max(64, Math.Min(rightTopBottomSplitter.SplitterDistance, 80));
                 st.Save();
             };
 
@@ -1466,7 +1467,7 @@ namespace NameBuilderConfigurator
                     middleRightSplitter.SplitterDistance = Math.Max(200, middleWidth);
                     
                     // Preview height (persisted)
-                    rightTopBottomSplitter.SplitterDistance = Math.Max(20, Math.Min(settings.PreviewHeight, 100));
+                    rightTopBottomSplitter.SplitterDistance = Math.Max(64, Math.Min(settings.PreviewHeight, 80));
                 }
                 finally
                 {
@@ -7259,7 +7260,7 @@ class PluginUserSettings
 {
     public double LeftPanelProportion { get; set; } = 0.30;
     public double RightPanelProportion { get; set; } = 0.35;
-    public int PreviewHeight { get; set; } = 60;
+    public int PreviewHeight { get; set; } = 64;
     public int? DefaultTimezoneOffset { get; set; } = null;
     public string DefaultPrefix { get; set; } = null;
     public string DefaultSuffix { get; set; } = null;
