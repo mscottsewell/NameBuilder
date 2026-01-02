@@ -1,6 +1,7 @@
 # NameBuilder (Dataverse + XrmToolBox)
 
 NameBuilder automatically builds a record's primary name (usually the `name` field) from other fields on the record.
+<img width="1258" alt="image" src="https://github.com/user-attachments/assets/ce3dfec3-f4a2-4e7b-9281-8d3df2254ec2" />
 
 ## Why use it?
 
