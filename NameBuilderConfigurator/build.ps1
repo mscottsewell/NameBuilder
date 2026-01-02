@@ -1,6 +1,8 @@
 # Build script for  NameBuilderConfigurator
 param(
-    [string]$Configuration = "Release"
+    [string]$Configuration = "Release",
+    [switch]$SkipVersionBump,
+    [switch]$SkipDeploy
 )
 
 function Update-VersionNumber {
@@ -28,7 +30,9 @@ function Update-VersionNumber {
 Write-Host "Building NameBuilderConfigurator..." -ForegroundColor Green
 
 $assemblyInfoPath = Join-Path $PSScriptRoot "Properties\AssemblyInfo.cs"
-if (Test-Path $assemblyInfoPath) {
+if ($SkipVersionBump) {
+    Write-Host "`nSkipVersionBump enabled; using existing AssemblyInfo version." -ForegroundColor Yellow
+} elseif (Test-Path $assemblyInfoPath) {
     Write-Host "`nIncrementing AssemblyInfo version..." -ForegroundColor Green
     $assemblyInfoContent = Get-Content -Path $assemblyInfoPath -Raw
 
@@ -142,7 +146,9 @@ if ($LASTEXITCODE -eq 0) {
         $xrmRoot = "$env:APPDATA\MscrmTools\XrmToolBox"
         $pluginsRoot = Join-Path $xrmRoot "Plugins"
         $pluginFolder = Join-Path $pluginsRoot "NameBuilderConfigurator"
-        if (Test-Path $xrmRoot) {
+        if ($SkipDeploy) {
+            Write-Host "`nSkipDeploy enabled; not deploying to XrmToolBox." -ForegroundColor Yellow
+        } elseif (Test-Path $xrmRoot) {
             Write-Host "`nDeploying to XrmToolBox..." -ForegroundColor Green
             New-Item -Path $pluginFolder -ItemType Directory -Force | Out-Null
             New-Item -Path $pluginsRoot -ItemType Directory -Force | Out-Null
