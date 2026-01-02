@@ -35,7 +35,6 @@ namespace NameBuilderConfigurator
         private ToolStripButton exportJsonToolButton;
         private ToolStripButton importJsonToolButton;
         private ToolStripButton retrieveConfigToolButton;
-        private ToolStripButton registerPluginToolButton;
         private ToolStripButton publishToolButton;
         private System.Windows.Forms.Label statusLabel;
         private NumericUpDown maxLengthNumeric;
@@ -185,8 +184,6 @@ namespace NameBuilderConfigurator
                 ResetConnectionScopedSelections();
             }
 
-            UpdatePluginInstallButtonState();
-
             if (newService != null)
             {
                 CheckUserPermissions();
@@ -278,7 +275,6 @@ namespace NameBuilderConfigurator
                     exportJsonToolButton.Enabled = false;
                     importJsonToolButton.Enabled = false;
                     retrieveConfigToolButton.Enabled = false;
-                    registerPluginToolButton.Enabled = false;
                     publishToolButton.Enabled = false;
                     targetFieldTextBox.Enabled = false;
                     enableTracingCheckBox.Enabled = false;
@@ -1012,17 +1008,6 @@ namespace NameBuilderConfigurator
             retrieveConfigToolButton.ToolTipText = "Pull an existing NameBuilder plug-in step configuration from Dataverse.";
             ribbon.Items.Add(retrieveConfigToolButton);
 
-            registerPluginToolButton = new ToolStripButton
-            {
-                Text = "Register Plug-in",
-                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                Enabled = false,
-                Image = LoadToolbarIcon("NameBuilder_Monoline.png", SystemIcons.Shield),
-            };
-            registerPluginToolButton.Click += RegisterPluginToolButton_Click;
-            registerPluginToolButton.ToolTipText = "Verify or deploy the NameBuilder plug-in assembly into the connected environment.";
-            ribbon.Items.Add(registerPluginToolButton);
-
             ribbon.Items.Add(new ToolStripSeparator());
             
             importJsonToolButton = new ToolStripButton
@@ -1509,8 +1494,6 @@ namespace NameBuilderConfigurator
             };
             
             this.Resize += applySavedLayout;
-
-            UpdatePluginInstallButtonState();
             this.ResumeLayout();
         }
 
@@ -1522,7 +1505,7 @@ namespace NameBuilderConfigurator
             }
 
             pluginPresenceCheckRunning = true;
-            UpdatePluginInstallButtonState();
+            SetActiveRegistryStep(activeRegistryStep);
 
             WorkAsync(new WorkAsyncInfo
             {
@@ -1534,7 +1517,7 @@ namespace NameBuilderConfigurator
                 PostWorkCallBack = (args) =>
                 {
                     pluginPresenceCheckRunning = false;
-                    UpdatePluginInstallButtonState();
+                    SetActiveRegistryStep(activeRegistryStep);
 
                     if (args.Error != null)
                     {
@@ -1574,8 +1557,6 @@ namespace NameBuilderConfigurator
                                 continuation?.Invoke();
                             }
                         }
-
-                        UpdatePluginInstallButtonState();
                         SetActiveRegistryStep(activeRegistryStep);
                         TryAutoLoadPublishedConfiguration();
                     }
@@ -1603,7 +1584,7 @@ namespace NameBuilderConfigurator
                 return new PluginPresenceCheckResult
                 {
                     IsInstalled = false,
-                    Message = "The NameBuilder plug-in assembly is missing in this Dataverse environment. Use Register NameBuilder Plug-in to install it before continuing.",
+                    Message = "The NameBuilder plug-in assembly is missing in this Dataverse environment. Use Publish Configuration and choose 'Update plug-in first' when prompted to install it.",
                     AssemblyName = "NameBuilder"
                 };
             }
@@ -1633,7 +1614,7 @@ namespace NameBuilderConfigurator
                 return new PluginPresenceCheckResult
                 {
                     IsInstalled = false,
-                    Message = "No plug-in types were found under the NameBuilder assembly. Use Register NameBuilder Plug-in to reinstall the plug-in.",
+                    Message = "No plug-in types were found under the NameBuilder assembly. Use Publish Configuration and choose 'Update plug-in first' when prompted to reinstall the plug-in.",
                     PluginAssemblyId = assembly.Id,
                     InstalledVersion = assembly.GetAttributeValue<string>("version"),
                     AssemblyName = assembly.GetAttributeValue<string>("name") ?? "NameBuilder",
@@ -1655,44 +1636,15 @@ namespace NameBuilderConfigurator
             };
         }
 
-        private void RegisterPluginToolButton_Click(object sender, EventArgs e)
+        private void StartPluginInstallation(string assemblyPath, Guid? solutionId, Action postInstallContinuation = null)
         {
-            if (Service == null)
+            if (pluginInstallRunning)
             {
-                MessageBox.Show("Please connect to a Dataverse environment before installing the plug-in.",
-                    "Not Connected", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, "A plug-in installation is already running.",
+                    "Installation In Progress", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            var defaultPath = ResolveLocalPluginAssemblyPath();
-            var statusInfo = BuildPluginRegistrationStatusInfo();
-
-            using (var dialog = new PluginRegistrationDialog(defaultPath, statusInfo))
-            {
-                if (dialog.ShowDialog(this) == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedAssemblyPath))
-                {
-                    var preference = GetConnectionPreference();
-                    var solutionId = preference?.PluginSolutionId;
-
-                    using (var solutionDialog = new PluginSolutionSelectionDialog(solutions, solutionId))
-                    {
-                        if (solutionDialog.ShowDialog(this) == DialogResult.OK)
-                        {
-                            PersistConnectionPreference(pref =>
-                            {
-                                pref.PluginSolutionId = solutionDialog.SelectedSolutionId;
-                                pref.PluginSolutionUniqueName = solutionDialog.SelectedSolutionUniqueName;
-                            });
-
-                            StartPluginInstallation(dialog.SelectedAssemblyPath, solutionDialog.SelectedSolutionId);
-                        }
-                    }
-                }
-            }
-        }
-
-        private void StartPluginInstallation(string assemblyPath, Guid? solutionId, Action postInstallContinuation = null)
-        {
             if (string.IsNullOrWhiteSpace(assemblyPath) || !File.Exists(assemblyPath))
             {
                 MessageBox.Show(this, "Select a valid NameBuilder.dll file before continuing.",
@@ -1701,7 +1653,7 @@ namespace NameBuilderConfigurator
             }
 
             pluginInstallRunning = true;
-            UpdatePluginInstallButtonState();
+            SetActiveRegistryStep(activeRegistryStep);
 
             WorkAsync(new WorkAsyncInfo
             {
@@ -1723,7 +1675,7 @@ namespace NameBuilderConfigurator
                 PostWorkCallBack = (args) =>
                 {
                     pluginInstallRunning = false;
-                    UpdatePluginInstallButtonState();
+                    SetActiveRegistryStep(activeRegistryStep);
 
                     if (args.Error != null)
                     {
@@ -1747,54 +1699,6 @@ namespace NameBuilderConfigurator
                     EnsureNameBuilderPluginPresence();
                 }
             });
-        }
-
-        private PluginRegistrationStatusInfo BuildPluginRegistrationStatusInfo()
-        {
-            var status = new PluginRegistrationStatusInfo
-            {
-                IsInstalled = lastPluginCheckResult?.IsInstalled ?? false,
-                InstalledVersion = lastPluginCheckResult?.InstalledVersion,
-                StatusMessage = lastPluginCheckResult?.Message,
-                InstalledHash = lastPluginCheckResult?.InstalledHash
-            };
-
-            if (lastPluginCheckResult?.RegisteredPluginTypes != null && lastPluginCheckResult.RegisteredPluginTypes.Count > 0)
-            {
-                status.RegisteredTypes = lastPluginCheckResult.RegisteredPluginTypes
-                    .Select(t => t?.Name ?? t?.TypeName)
-                    .Where(name => !string.IsNullOrWhiteSpace(name))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-
-            return status;
-        }
-
-        private void UpdatePluginInstallButtonState()
-        {
-            if (registerPluginToolButton == null)
-            {
-                return;
-            }
-
-            var hasConnection = Service != null;
-            registerPluginToolButton.Enabled = hasConnection && !pluginPresenceCheckRunning && !pluginInstallRunning;
-            registerPluginToolButton.Text = pluginPresenceVerified
-                ? "Update NameBuilder Plug-in"
-                : "Register NameBuilder Plug-in";
-
-            if (lastPluginCheckResult != null && lastPluginCheckResult.IsInstalled &&
-                !string.IsNullOrWhiteSpace(lastPluginCheckResult.InstalledHash))
-            {
-                registerPluginToolButton.ToolTipText =
-                    $"Current NameBuilder hash: {FormatHashPreview(lastPluginCheckResult.InstalledHash)}. Click to update or repair.";
-            }
-            else
-            {
-                registerPluginToolButton.ToolTipText =
-                    "Deploy or update the NameBuilder plug-in assembly in the connected Dataverse environment.";
-            }
         }
 
         private string ResolveLocalPluginAssemblyPath(bool refresh = false)
@@ -3318,7 +3222,7 @@ namespace NameBuilderConfigurator
             if (publishToolButton == null)
                 return;
 
-            publishToolButton.Enabled = pluginPresenceVerified && Service != null;
+            publishToolButton.Enabled = Service != null && !pluginPresenceCheckRunning && !pluginInstallRunning;
             var tooltipTarget = activeRegistryStep != null
                 ? activeRegistryStep.Name ?? activeRegistryStep.StepId.ToString()
                 : (currentEntityDisplayName ?? currentEntityLogicalName ?? "this entity");
