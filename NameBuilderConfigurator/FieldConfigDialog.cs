@@ -7,8 +7,12 @@ using Microsoft.Xrm.Sdk.Metadata;
 namespace NameBuilderConfigurator
 {
     /// <summary>
-    /// Dialog for editing field configuration details
+    /// Dialog for editing a single field block's configuration.
     /// </summary>
+    /// <remarks>
+    /// The dialog edits a copy of the provided <see cref="FieldConfiguration"/> and returns it via
+    /// <see cref="Result"/> when the user clicks OK.
+    /// </remarks>
     public class FieldConfigDialog : Form
     {
         private FieldConfiguration config;
@@ -30,8 +34,14 @@ namespace NameBuilderConfigurator
         private Label formatExampleLabel;
         private readonly ToolTip helpToolTip;
         
+        /// <summary>The edited field configuration when the dialog returns OK.</summary>
         public FieldConfiguration Result { get; private set; }
         
+        /// <summary>
+        /// Creates the dialog.
+        /// </summary>
+        /// <param name="configuration">Initial field configuration values.</param>
+        /// <param name="metadata">Optional Dataverse metadata used to tailor formatting hints.</param>
         public FieldConfigDialog(FieldConfiguration configuration, AttributeMetadata metadata = null)
         {
             config = new FieldConfiguration

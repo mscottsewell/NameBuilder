@@ -7,14 +7,26 @@ using System.Windows.Forms;
 
 namespace NameBuilderConfigurator
 {
+    /// <summary>
+    /// Dialog that prompts the user to locate NameBuilder.dll and confirms installing/updating it in Dataverse.
+    /// </summary>
+    /// <remarks>
+    /// This dialog only chooses the local assembly path; the actual registration is performed by the caller.
+    /// </remarks>
     internal sealed class PluginRegistrationDialog : Form
     {
         private readonly TextBox pathTextBox;
         private readonly Label statusLabel;
         private readonly PluginRegistrationStatusInfo statusInfo;
 
+        /// <summary>The local path selected by the user for NameBuilder.dll.</summary>
         public string SelectedAssemblyPath { get; private set; }
 
+        /// <summary>
+        /// Creates the dialog.
+        /// </summary>
+        /// <param name="defaultAssemblyPath">Initial suggested path for NameBuilder.dll.</param>
+        /// <param name="status">Information about the currently installed plug-in in Dataverse.</param>
         public PluginRegistrationDialog(string defaultAssemblyPath, PluginRegistrationStatusInfo status)
         {
             statusInfo = status ?? new PluginRegistrationStatusInfo();
@@ -101,6 +113,7 @@ namespace NameBuilderConfigurator
             CancelButton = cancelButton;
         }
 
+        /// <summary>Shows a file picker to select NameBuilder.dll.</summary>
         private void BrowseForAssembly()
         {
             using (var dialog = new OpenFileDialog())
@@ -114,6 +127,9 @@ namespace NameBuilderConfigurator
             }
         }
 
+        /// <summary>
+        /// Validates the chosen file path and closes with OK when the selection is usable.
+        /// </summary>
         private void TryConfirmSelection()
         {
             var selectedPath = pathTextBox.Text?.Trim();
@@ -132,6 +148,7 @@ namespace NameBuilderConfigurator
             Close();
         }
 
+        /// <summary>Builds a human-readable status message shown at the top of the dialog.</summary>
         private string BuildStatusMessage()
         {
             if (statusInfo == null)
@@ -175,10 +192,19 @@ namespace NameBuilderConfigurator
 
     internal sealed class PluginRegistrationStatusInfo
     {
+        /// <summary>True when a NameBuilder assembly was found in Dataverse.</summary>
         public bool IsInstalled { get; set; }
+
+        /// <summary>The installed assembly version (when known).</summary>
         public string InstalledVersion { get; set; }
+
+        /// <summary>Additional status message (warnings or details) to show in the UI.</summary>
         public string StatusMessage { get; set; }
+
+        /// <summary>Registered plug-in type display names.</summary>
         public IReadOnlyList<string> RegisteredTypes { get; set; } = Array.Empty<string>();
+
+        /// <summary>SHA-256 hash of the installed assembly content (when available).</summary>
         public string InstalledHash { get; set; }
     }
 }

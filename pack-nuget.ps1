@@ -1,3 +1,52 @@
+<#
+.SYNOPSIS
+Pack/deploy helper for the NameBuilder monorepo.
+
+.DESCRIPTION
+Builds and/or packs the configurator NuGet package (including the plug-in payload), and can optionally:
+- Deploy to a local XrmToolBox Plugins folder.
+- Push the resulting .nupkg to NuGet.
+
+This script exists primarily as a packaging-focused entrypoint. The repo-root build script
+(build.ps1) is the more general orchestrator.
+
+.PARAMETER Configuration
+Build configuration to use (Debug/Release).
+
+.PARAMETER DryRun
+Print what would happen and exit without modifying files.
+
+.PARAMETER NoPack
+Build only (do not pack).
+
+.PARAMETER NoBuild
+Pack only (assumes build outputs already exist).
+
+.PARAMETER PluginOnly
+Operate on the plug-in component only (packing is not supported in this mode).
+
+.PARAMETER ConfiguratorOnly
+Operate on the configurator component only.
+
+.PARAMETER Push
+Push the generated NuGet package (only when packing).
+
+.PARAMETER SkipDeploy
+Skip local deployment to XrmToolBox.
+
+.PARAMETER SkipVersionBump
+Skip bumping the configurator version.
+
+.PARAMETER SkipPluginFileVersionBump
+Skip bumping the plug-in file version.
+
+.EXAMPLE
+pwsh -File .\pack-nuget.ps1 -Configuration Release
+
+.EXAMPLE
+pwsh -File .\pack-nuget.ps1 -Configuration Release -Push
+#>
+
 param(
     [ValidateSet('Debug','Release')]
     [string]$Configuration = "Release",

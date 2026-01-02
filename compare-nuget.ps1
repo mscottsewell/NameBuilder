@@ -1,3 +1,45 @@
+<#
+.SYNOPSIS
+Compares a local .nupkg against the latest (or specified) NuGet.org package.
+
+.DESCRIPTION
+Downloads the NuGet.org package for the given PackageId (or a specific RemoteVersion), extracts both
+packages into a temporary working folder, and compares file manifests (path + SHA256 + size).
+
+The script treats some package/signing metadata as expected differences (e.g., signature and core-properties).
+It also prints DLL FileVersion/ProductVersion metadata for key binaries when present.
+
+.PARAMETER PackageId
+The NuGet package ID to compare.
+
+.PARAMETER BuildLocal
+If set, runs the repo-root build script in safe defaults to produce a local .nupkg first.
+
+.PARAMETER Configuration
+Build configuration used when -BuildLocal is enabled.
+
+.PARAMETER LocalNupkgPath
+Explicit local .nupkg path. If omitted, uses the newest artifacts/nuget/<PackageId>.*.nupkg.
+
+.PARAMETER RemoteVersion
+Remote NuGet version to compare against. If omitted, uses the newest available version.
+
+.PARAMETER MaxDiff
+Maximum number of differences to print per section.
+
+.PARAMETER KeepTemp
+If set, keeps extracted files under .tmp for inspection.
+
+.EXAMPLE
+pwsh -File .\compare-nuget.ps1
+
+.EXAMPLE
+pwsh -File .\compare-nuget.ps1 -BuildLocal -Configuration Release
+
+.EXAMPLE
+pwsh -File .\compare-nuget.ps1 -RemoteVersion 1.2.3
+#>
+
 param(
     [string]$PackageId = "NameBuilderConfigurator",
 

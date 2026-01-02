@@ -1,0 +1,12 @@
+{
+  "json.schemas": [
+    {
+      "fileMatch": [
+        "**/*-config.json",
+        "**/Configuration Examples.txt",
+        "**/Example for Service Case.txt"
+      ],
+      "url": "./NameBuilderPlugin/Docs/plugin-config.schema.json"
+    }
+  ]
+}

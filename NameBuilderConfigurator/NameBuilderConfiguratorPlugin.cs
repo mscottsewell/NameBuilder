@@ -3,8 +3,15 @@ using System.ComponentModel.Composition;
 using XrmToolBox.Extensibility;
 using XrmToolBox.Extensibility.Interfaces;
 
-namespace  NameBuilderConfigurator
+namespace NameBuilderConfigurator
 {
+    /// <summary>
+    /// XrmToolBox plug-in entry point that hosts the NameBuilder configuration UI.
+    /// </summary>
+    /// <remarks>
+    /// XrmToolBox uses MEF (Managed Extensibility Framework) to discover plug-ins. The export metadata values
+    /// below control how the plug-in appears in the catalog (name, description, and icons).
+    /// </remarks>
     [Export(typeof(IXrmToolBoxPlugin)),
      ExportMetadata("Name", "NameBuilder Configurator"),
      ExportMetadata("Description", "Configure and deploy the NameBuilder plugin. Constructs the entity record's name field using a configured, standardized pattern."),
@@ -13,11 +20,15 @@ namespace  NameBuilderConfigurator
      ExportMetadata("BackgroundColor", "White"),
      ExportMetadata("PrimaryFontColor", "Indigo"),
      ExportMetadata("SecondaryFontColor", "Black")]
-    public class  NameBuilderConfiguratorPlugin : PluginBase
+    public class NameBuilderConfiguratorPlugin : PluginBase
     {
+        /// <summary>
+        /// Creates the UI control displayed by XrmToolBox when the plug-in is opened.
+        /// </summary>
+        /// <returns>The plug-in's main control.</returns>
         public override IXrmToolBoxPluginControl GetControl()
         {
-            return new  NameBuilderConfiguratorControl();
+            return new NameBuilderConfiguratorControl();
         }
     }
 }

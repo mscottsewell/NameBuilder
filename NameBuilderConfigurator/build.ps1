@@ -1,4 +1,30 @@
-# Build script for  NameBuilderConfigurator
+<#
+.SYNOPSIS
+Build script for NameBuilderConfigurator.
+
+.DESCRIPTION
+Builds the NameBuilderConfigurator solution using MSBuild. Unless -SkipVersionBump is set, this script
+increments the configurator AssemblyVersion in Properties/AssemblyInfo.cs (and also updates AssemblyFileVersion
+when present) before building.
+
+This is a project-local script; the repo-root build.ps1 is the primary orchestrator for the monorepo.
+
+.PARAMETER Configuration
+Build configuration to use (Debug/Release).
+
+.PARAMETER SkipVersionBump
+Skips incrementing AssemblyInfo version metadata.
+
+.PARAMETER SkipDeploy
+Skips any post-build deployment steps (if configured in the script).
+
+.EXAMPLE
+pwsh -File .\NameBuilderConfigurator\build.ps1 -Configuration Release
+
+.EXAMPLE
+pwsh -File .\NameBuilderConfigurator\build.ps1 -Configuration Release -SkipVersionBump
+#>
+
 param(
     [string]$Configuration = "Release",
     [switch]$SkipVersionBump,

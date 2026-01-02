@@ -14,7 +14,7 @@ This directory contains the JSON schema (`plugin-config.schema.json`) for valida
 
 ### In VS Code (Automatic)
 
-The `.vscode/settings.json` file automatically associates these patterns with the schema:
+The repo-root `.vscode/settings.json` file automatically associates common configuration filename patterns with this schema.
 
 - `*-config.json` (e.g., `opportunity-config.json`, `case-config.json`)
 - `Configuration Examples.txt`
@@ -29,7 +29,19 @@ The `.vscode/settings.json` file automatically associates these patterns with th
 
 ### In Any JSON File
 
-Add this line at the top of your JSON configuration:
+Add this line at the top of your JSON configuration.
+
+If your JSON config file lives in the plug-in folder (next to `README.md`), reference the schema under `Docs/`:
+
+```json
+{
+  "$schema": "./Docs/plugin-config.schema.json",
+  "targetField": "name",
+  "pattern": "createdon | ownerid"
+}
+```
+
+If your JSON config file lives in this `Docs/` folder, you can use:
 
 ```json
 {
@@ -39,11 +51,11 @@ Add this line at the top of your JSON configuration:
 }
 ```
 
-Or use a URL if the schema is published:
+Or use a URL if you publish the schema (for example, the raw GitHub URL in your fork):
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/mscottsewell/DataverseNamePlugin/main/plugin-config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/<owner>/<repo>/<branch>/NameBuilderPlugin/Docs/plugin-config.schema.json",
   "targetField": "name",
   "pattern": "createdon | ownerid"
 }

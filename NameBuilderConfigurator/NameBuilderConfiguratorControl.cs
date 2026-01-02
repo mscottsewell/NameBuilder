@@ -21,6 +21,14 @@ using McTools.Xrm.Connection;
 
 namespace NameBuilderConfigurator
 {
+    /// <summary>
+    /// Main UI control for the NameBuilder Configurator.
+    /// </summary>
+    /// <remarks>
+    /// This control runs inside XrmToolBox and helps users build and publish the JSON configuration used by the
+    /// NameBuilder Dataverse plug-in. It loads solution/entity metadata, lets the user visually compose field blocks,
+    /// shows a live preview based on a sample record, and can publish the resulting JSON back to plug-in steps.
+    /// </remarks>
     public partial class NameBuilderConfiguratorControl : PluginControlBase
     {
         private ComboBox solutionDropdown;
@@ -168,6 +176,13 @@ namespace NameBuilderConfigurator
             InitializeComponent();
         }
 
+        /// <summary>
+        /// Called by XrmToolBox when the active Dataverse connection changes.
+        /// </summary>
+        /// <remarks>
+        /// When switching environments we reset connection-scoped caches and selections.
+        /// When connecting, we validate permissions, verify plug-in registration, and load solutions/entities.
+        /// </remarks>
         public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail, string actionName, object parameter)
         {
             base.UpdateConnection(newService, detail, actionName, parameter);
@@ -229,6 +244,13 @@ namespace NameBuilderConfigurator
             return new Font(fontName, fontSize, style);
         }
 
+        /// <summary>
+        /// Performs a lightweight Dataverse read to confirm the current user can access plug-in registration tables.
+        /// </summary>
+        /// <remarks>
+        /// The configurator needs permissions to read/write entities like pluginassembly/plugintype/steps.
+        /// If this check fails, we disable the UI and display a clear message.
+        /// </remarks>
         private void CheckUserPermissions()
         {
             if (Service == null)
@@ -335,6 +357,10 @@ namespace NameBuilderConfigurator
             sampleRecordCache.Clear();
         }
 
+        /// <summary>
+        /// Ensures the solution list is loaded into the dropdown.
+        /// </summary>
+        /// <param name="ensureEntities">When true, entity metadata is loaded once solutions are available.</param>
         private void EnsureSolutionsLoaded(bool ensureEntities = false)
         {
             if (Service == null || solutionDropdown == null)
@@ -368,6 +394,13 @@ namespace NameBuilderConfigurator
             }
         }
 
+        /// <summary>
+        /// Loads unmanaged solutions from Dataverse for filtering entities and storing plug-in components.
+        /// </summary>
+        /// <remarks>
+        /// We only list unmanaged solutions because managed solutions are not editable and are not appropriate targets
+        /// for adding custom plug-in components.
+        /// </remarks>
         private void LoadSolutions()
         {
             if (Service == null)
@@ -563,6 +596,10 @@ namespace NameBuilderConfigurator
                 item.UniqueName.Equals(DefaultSolutionUniqueName, StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Loads entity membership for a specific solution (used to filter the entity dropdown).
+        /// </summary>
+        /// <param name="solution">The selected solution.</param>
         private void LoadSolutionEntities(SolutionItem solution)
         {
             if (Service == null || solution == null)
@@ -645,6 +682,13 @@ namespace NameBuilderConfigurator
             });
         }
 
+        /// <summary>
+        /// Applies the currently selected solution filter to the entity dropdown.
+        /// </summary>
+        /// <remarks>
+        /// When the selected solution is the default solution, the full entity list is shown.
+        /// Otherwise, we show only entities whose metadata IDs are present in the solution component cache.
+        /// </remarks>
         private void ApplySolutionFilterIfReady()
         {
             if (entityDropdown == null)
@@ -1495,6 +1539,13 @@ namespace NameBuilderConfigurator
             this.ResumeLayout();
         }
 
+        /// <summary>
+        /// Verifies that the NameBuilder plug-in assembly and types exist in the connected Dataverse environment.
+        /// </summary>
+        /// <remarks>
+        /// Publishing configuration requires a known plug-in type and (usually) standard Create/Update steps.
+        /// If the plug-in is missing, the UI will prompt the user to install or update it.
+        /// </remarks>
         private void EnsureNameBuilderPluginPresence()
         {
             if (Service == null || pluginPresenceCheckRunning || pluginPresenceVerified)
@@ -1562,6 +1613,12 @@ namespace NameBuilderConfigurator
             });
         }
 
+        /// <summary>
+        /// Queries Dataverse for the NameBuilder plug-in assembly and its registered plug-in types.
+        /// </summary>
+        /// <returns>
+        /// A <see cref="PluginPresenceCheckResult"/> describing whether NameBuilder is installed and what was found.
+        /// </returns>
         private PluginPresenceCheckResult PerformNameBuilderPluginPresenceCheck()
         {
             var assemblyQuery = new QueryExpression("pluginassembly")
@@ -1634,6 +1691,12 @@ namespace NameBuilderConfigurator
             };
         }
 
+        /// <summary>
+        /// Registers or updates the NameBuilder plug-in assembly in Dataverse.
+        /// </summary>
+        /// <param name="assemblyPath">Local path to NameBuilder.dll.</param>
+        /// <param name="solutionId">Optional solution to add the plug-in assembly to after registration.</param>
+        /// <param name="postInstallContinuation">Optional action to run after install completes and presence is re-verified.</param>
         private void StartPluginInstallation(string assemblyPath, Guid? solutionId, Action postInstallContinuation = null)
         {
             if (pluginInstallRunning)
@@ -1699,6 +1762,15 @@ namespace NameBuilderConfigurator
             });
         }
 
+        /// <summary>
+        /// Attempts to locate the packaged NameBuilder.dll that ships with the configurator.
+        /// </summary>
+        /// <remarks>
+        /// The expected path is Assets\DataversePlugin\NameBuilder.dll. This method searches likely folders relative
+        /// to the running XrmToolBox plug-in.
+        /// </remarks>
+        /// <param name="refresh">When true, forces a rescan even if a cached path exists.</param>
+        /// <returns>The assembly path if found; otherwise null.</returns>
         private string ResolveLocalPluginAssemblyPath(bool refresh = false)
         {
             if (!refresh && !string.IsNullOrWhiteSpace(cachedPluginAssemblyPath) && File.Exists(cachedPluginAssemblyPath))
@@ -1763,6 +1835,9 @@ namespace NameBuilderConfigurator
             return null;
         }
 
+        /// <summary>
+        /// Adds the plug-in assembly as a component of a Dataverse solution (if it is not already included).
+        /// </summary>
         private void AddPluginComponentsToSolution(Guid assemblyId, Guid solutionId)
         {
             if (assemblyId == Guid.Empty || solutionId == Guid.Empty)
@@ -1804,6 +1879,9 @@ namespace NameBuilderConfigurator
             Service.Execute(addRequest);
         }
 
+        /// <summary>
+        /// Adds a SDK message processing step to a solution (if it is not already included).
+        /// </summary>
         private void AddStepToSolution(Guid stepId, Guid? solutionId)
         {
             if (stepId == Guid.Empty || !solutionId.HasValue || solutionId.Value == Guid.Empty)

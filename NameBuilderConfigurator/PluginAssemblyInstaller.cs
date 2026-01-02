@@ -10,6 +10,14 @@ using Microsoft.Xrm.Sdk.Query;
 
 namespace NameBuilderConfigurator
 {
+    /// <summary>
+    /// Installs or updates the NameBuilder plug-in assembly in a Dataverse environment.
+    /// </summary>
+    /// <remarks>
+    /// In Dataverse, plug-in code is uploaded as a <c>pluginassembly</c> record and each plug-in class is represented
+    /// as a <c>plugintype</c> record. This helper wraps that process and performs lightweight validation to reduce the
+    /// chance of uploading the wrong DLL.
+    /// </remarks>
     internal sealed class PluginAssemblyInstaller
     {
         private readonly IOrganizationService service;
@@ -18,11 +26,23 @@ namespace NameBuilderConfigurator
         private static readonly Lazy<(string Hash, string PublicKeyToken)> ExpectedAssemblyMetadata =
             new Lazy<(string Hash, string PublicKeyToken)>(LoadExpectedAssemblyMetadata, isThreadSafe: true);
 
+        /// <summary>
+        /// Creates a new installer.
+        /// </summary>
+        /// <param name="organizationService">Organization service used to create/update Dataverse records.</param>
         public PluginAssemblyInstaller(IOrganizationService organizationService)
         {
             service = organizationService ?? throw new ArgumentNullException(nameof(organizationService));
         }
 
+        /// <summary>
+        /// Uploads the specified plug-in assembly to Dataverse and ensures its plugin types exist.
+        /// </summary>
+        /// <param name="assemblyPath">Path to the compiled <c>NameBuilder.dll</c>.</param>
+        /// <returns>A summary of what was created or updated.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="assemblyPath"/> is empty.</exception>
+        /// <exception cref="FileNotFoundException">Thrown when the file does not exist.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the assembly cannot be validated or inspected.</exception>
         public PluginAssemblyInstallResult InstallOrUpdate(string assemblyPath)
         {
             if (string.IsNullOrWhiteSpace(assemblyPath))
@@ -45,6 +65,7 @@ namespace NameBuilderConfigurator
             var content = Convert.ToBase64String(rawBytes);
             var fileHash = ComputeSha256Hex(rawBytes);
 
+            // Either create a brand new pluginassembly record, or update the existing one.
             var existingAssembly = FindExistingAssembly(shortName);
             Guid assemblyId;
             var createdAssembly = false;
@@ -362,22 +383,71 @@ namespace NameBuilderConfigurator
 
         private sealed class PluginClassDefinition
         {
+            /// <summary>
+            /// Full type name including namespace (e.g., <c>NameBuilder.NameBuilderPlugin</c>).
+            /// </summary>
             public string TypeName { get; set; }
+
+            /// <summary>
+            /// Friendly display name shown in Dataverse tools.
+            /// </summary>
             public string FriendlyName { get; set; }
+
+            /// <summary>
+            /// Description stored for the plugin type.
+            /// </summary>
             public string Description { get; set; }
         }
     }
 
+    /// <summary>
+    /// Summary of a plug-in assembly installation attempt.
+    /// </summary>
     internal sealed class PluginAssemblyInstallResult
     {
+        /// <summary>
+        /// Dataverse pluginassembly id.
+        /// </summary>
         public Guid AssemblyId { get; set; }
+
+        /// <summary>
+        /// Short assembly name (without extension).
+        /// </summary>
         public string AssemblyName { get; set; }
+
+        /// <summary>
+        /// Assembly version reported by the DLL.
+        /// </summary>
         public string Version { get; set; }
+
+        /// <summary>
+        /// True when a new pluginassembly record was created; false when an existing record was updated.
+        /// </summary>
         public bool CreatedAssembly { get; set; }
+
+        /// <summary>
+        /// Number of plugintype records created.
+        /// </summary>
         public int CreatedPluginTypes { get; set; }
+
+        /// <summary>
+        /// Number of plugintype records that already existed.
+        /// </summary>
         public int ExistingPluginTypes { get; set; }
+
+        /// <summary>
+        /// Full names of discovered plug-in classes.
+        /// </summary>
         public IReadOnlyList<string> PluginTypeNames { get; set; } = Array.Empty<string>();
+
+        /// <summary>
+        /// Absolute path to the uploaded assembly.
+        /// </summary>
         public string AssemblyPath { get; set; }
+
+        /// <summary>
+        /// SHA-256 hash of the uploaded DLL (hex string).
+        /// </summary>
         public string AssemblyHash { get; set; }
     }
 }

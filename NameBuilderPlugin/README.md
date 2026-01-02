@@ -1,8 +1,8 @@
 # Dataverse Name Builder Plugin
 
 A configurable Dataverse plugin that dynamically constructs the primary name field of a dataverse record based on values from other fields on that record. It uses an intuitive pattern-based configuration syntax in JSON format.
-Although not a requirement, a recommended companion is the NameBuilder Configurator, an XrmToolbox utility that simplifies the creation and configuration of the JSON used by this PlugIn.
-The project can be found here: https://github.com/mscottsewell/Dataverse-NameBuilder-XrmToolBox-Configurator But it's easily installed from within the XrmToolBox Tools catalog, just search for NameBuilder.
+Although not a requirement, a recommended companion is the NameBuilder Configurator (an XrmToolBox utility) that simplifies creating and managing the JSON used by this plug-in.
+In this monorepo, the configurator lives in [../NameBuilderConfigurator](../NameBuilderConfigurator). It can also be installed from the XrmToolBox Tool Library (search for "NameBuilder Configurator").
 
 ## Features
 
@@ -33,7 +33,7 @@ The project can be found here: https://github.com/mscottsewell/Dataverse-NameBui
 
 ```json
 {
-  "$schema": "./plugin-config.schema.json",
+  "$schema": "./Docs/plugin-config.schema.json",
   "targetField": "name",
   "pattern": "createdon | ownerid - statuscode",
   "maxLength": 100
@@ -42,7 +42,7 @@ The project can be found here: https://github.com/mscottsewell/Dataverse-NameBui
 
 **Result:** `2025-12-01 | John Smith - Active`
 
-**Tip:** Add `"$schema": "./plugin-config.schema.json"` to enable IntelliSense and validation in VS Code. See [SCHEMA.md](SCHEMA.md) for details.
+**Tip:** Add `"$schema": "./Docs/plugin-config.schema.json"` to enable IntelliSense and validation in VS Code. See [Docs/SCHEMA.md](Docs/SCHEMA.md) for details.
 
 ## Configuration Format
 
@@ -67,7 +67,7 @@ Best for straightforward name building with inline delimiters:
 - Field types are inferred from Dataverse metadata (fallback to naming conventions)
 - Optional explicit types: `fieldname:type` or `fieldname:date:format`
 
-**See [PATTERN_EXAMPLES.md](PATTERN_EXAMPLES.md) for detailed pattern documentation.**
+**See [Docs/PATTERN_EXAMPLES.md](Docs/PATTERN_EXAMPLES.md) for detailed pattern documentation.**
 
 ### Option 2: Fields Array (Advanced)
 
@@ -118,10 +118,9 @@ Best for per-field control with truncation, defaults, and fallbacks:
 | `prefix` | string | - | Text before field value |
 | `suffix` | string | - | Text after field value |
 | `includeIf` | object | - | Condition for including this field (see Conditional Fields) |
-| `timezoneOffset` | number | - | Hours to offset date/datetime values |
 | `timezoneOffsetHours` | number | - | Adjusts UTC date/time by this many hours (e.g., `-5` for EST, `1` for CET) |
 
-**See [EXAMPLES.md](EXAMPLES.md) for comprehensive fields array examples.**
+**See [Docs/EXAMPLES.md](Docs/EXAMPLES.md) for comprehensive fields array examples.**
 
 ### Configuration Properties
 
@@ -310,9 +309,9 @@ Best for per-field control with truncation, defaults, and fallbacks:
 - `numberofemployees`: 1250 formatted as `1,250` (thousands separator)
 - `revenue`: $450,000 formatted as `$450.0K` (thousands scaling with currency symbol)
 
-**📖 For more pattern examples, see [PATTERN_EXAMPLES.md](PATTERN_EXAMPLES.md)**
-**📖 For more fields array examples, see [EXAMPLES.md](EXAMPLES.md)**
-**📖 For detailed numeric/currency formatting documentation, see [NUMERIC_CURRENCY_DOCS.md](NUMERIC_CURRENCY_DOCS.md)**
+**📖 For more pattern examples, see [Docs/PATTERN_EXAMPLES.md](Docs/PATTERN_EXAMPLES.md)**
+**📖 For more fields array examples, see [Docs/EXAMPLES.md](Docs/EXAMPLES.md)**
+**📖 For detailed numeric/currency formatting documentation, see [Docs/NUMERIC_CURRENCY_DOCS.md](Docs/NUMERIC_CURRENCY_DOCS.md)**
 
 ### Example 9: Conditional Field Inclusion
 
@@ -403,9 +402,9 @@ Show different fields based on record values (e.g., estimated value if open, act
 ```
 Shows actual value if opportunity is Won (1) or Lost (2).
 
-**📖 For more pattern examples, see [PATTERN_EXAMPLES.md](PATTERN_EXAMPLES.md)**
-**📖 For more fields array examples, see [EXAMPLES.md](EXAMPLES.md)**
-**📖 For detailed numeric/currency formatting documentation, see [NUMERIC_CURRENCY_DOCS.md](NUMERIC_CURRENCY_DOCS.md)**
+**📖 For more pattern examples, see [Docs/PATTERN_EXAMPLES.md](Docs/PATTERN_EXAMPLES.md)**
+**📖 For more fields array examples, see [Docs/EXAMPLES.md](Docs/EXAMPLES.md)**
+**📖 For detailed numeric/currency formatting documentation, see [Docs/NUMERIC_CURRENCY_DOCS.md](Docs/NUMERIC_CURRENCY_DOCS.md)**
 
 ## Metadata-Driven Intelligence
 

@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:namebuilder:plugin-config.schema.json",
+  "title": "NameBuilder plug-in configuration",
+  "description": "Schema for the Dataverse NameBuilder plug-in unsecure configuration JSON.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/patternConfig" },
+    { "$ref": "#/$defs/fieldsConfig" }
+  ],
+  "$defs": {
+    "patternConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entity": {
+          "type": "string",
+          "description": "Optional entity logical name (not required by the runtime; useful for documentation/templates)."
+        },
+        "targetField": {
+          "type": "string",
+          "description": "Target attribute logical name to populate (defaults to 'name')."
+        },
+        "enableTracing": {
+          "type": "boolean",
+          "description": "When true, emits additional trace output to the Dataverse Plugin Trace Log."
+        },
+        "pattern": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Pattern string defining the output, e.g. 'createdon | ownerid - statuscode'."
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Optional maximum length for the final output (auto-detected from targetField metadata when available)."
+        }
+      },
+      "required": ["pattern"]
+    },
+    "fieldsConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entity": {
+          "type": "string",
+          "description": "Optional entity logical name (not required by the runtime; useful for documentation/templates)."
+        },
+        "targetField": {
+          "type": "string",
+          "description": "Target attribute logical name to populate (defaults to 'name')."
+        },
+        "enableTracing": {
+          "type": "boolean",
+          "description": "When true, emits additional trace output to the Dataverse Plugin Trace Log."
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Ordered list of fields to concatenate.",
+          "items": { "$ref": "#/$defs/fieldConfiguration" }
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Optional maximum length for the final output (auto-detected from targetField metadata when available)."
+        }
+      },
+      "required": ["fields"]
+    },
+    "fieldConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Dataverse attribute logical name."
+        },
+        "type": {
+          "type": "string",
+          "description": "Optional type override. When omitted, the runtime infers type from metadata and/or naming conventions.",
+          "enum": [
+            "string",
+            "lookup",
+            "date",
+            "datetime",
+            "number",
+            "currency",
+            "optionset",
+            "picklist"
+          ]
+        },
+        "format": {
+          "type": "string",
+          "description": "Optional format string for date/datetime/number/currency fields."
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Optional per-field max length; values longer than this are truncated."
+        },
+        "truncationIndicator": {
+          "type": "string",
+          "description": "String appended when truncation occurs (defaults to '...')."
+        },
+        "default": {
+          "type": "string",
+          "description": "Default value when the field is missing or empty."
+        },
+        "alternateField": {
+          "$ref": "#/$defs/fieldConfiguration",
+          "description": "Fallback field configuration used when the primary field is empty."
+        },
+        "prefix": {
+          "type": "string",
+          "description": "Text prepended to the resolved value (only when a non-empty value is produced)."
+        },
+        "suffix": {
+          "type": "string",
+          "description": "Text appended to the resolved value (only when a non-empty value is produced)."
+        },
+        "timezoneOffsetHours": {
+          "type": "number",
+          "description": "Timezone offset (hours) applied to date/datetime values before formatting (e.g., -5 for EST, 1 for CET)."
+        },
+        "includeIf": {
+          "$ref": "#/$defs/fieldCondition",
+          "description": "Optional condition that must evaluate to true for this field to be included."
+        }
+      },
+      "required": ["field"]
+    },
+    "fieldCondition": {
+      "description": "Condition tree used to include/exclude a field. Use either a single condition (field/operator/value) or a compound anyOf/allOf group.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/leafCondition"
+        },
+        {
+          "$ref": "#/$defs/anyOfCondition"
+        },
+        {
+          "$ref": "#/$defs/allOfCondition"
+        }
+      ]
+    },
+    "leafCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "field": { "type": "string", "minLength": 1 },
+        "operator": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Operator name (case-insensitive).",
+          "enum": [
+            "equals",
+            "eq",
+            "notequals",
+            "ne",
+            "contains",
+            "notcontains",
+            "in",
+            "notin",
+            "greaterthan",
+            "gt",
+            "lessthan",
+            "lt",
+            "greaterthanorequal",
+            "gte",
+            "lessthanorequal",
+            "lte",
+            "isempty",
+            "isnotempty"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "description": "Expected value (string). Some operators treat this as a comma-separated list."
+        }
+      },
+      "required": ["field", "operator"]
+    },
+    "anyOfCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "anyOf": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fieldCondition" }
+        }
+      },
+      "required": ["anyOf"]
+    },
+    "allOfCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allOf": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fieldCondition" }
+        }
+      },
+      "required": ["allOf"]
+    }
+  }
+}

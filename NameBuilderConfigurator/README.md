@@ -1,6 +1,6 @@
 # NameBuilder Configurator – XrmToolBox Plugin
 
-> Visual designer for the [NameBuilder](https://github.com/mscottsewell/Dataverse-NameBuilder) Dataverse plug-in. Connect through XrmToolBox, assemble name patterns, preview the output, and publish JSON back to Create/Update steps without writing code.
+> Visual designer for the [NameBuilder](../NameBuilderPlugin) Dataverse plug-in. Connect through XrmToolBox, assemble name patterns, preview the output, and publish JSON back to Create/Update steps without writing code.
 <img width="1591" height="1037" alt="image" src="https://github.com/user-attachments/assets/8a509dbe-70af-49e1-b634-0a037c92006d" />
 
 ## Table of Contents
@@ -31,8 +31,8 @@ NameBuilder Configurator is a WinForms-based XrmToolBox plug-in that:
 
 ## Documentation Map
 
-- **Full walkthrough & screenshots** – [docs/USAGE.md](docs/USAGE.md)
-- **Canonical schema & plug-in internals** – [Dataverse-NameBuilder Docs](https://github.com/mscottsewell/Dataverse-NameBuilder/tree/main/Docs)
+- **Full walkthrough & screenshots** – [Docs/USAGE.md](Docs/USAGE.md)
+- **Schema & plug-in internals** – [../NameBuilderPlugin/Docs](../NameBuilderPlugin/Docs)
 
 ## Feature Highlights
 
@@ -46,7 +46,7 @@ NameBuilder Configurator is a WinForms-based XrmToolBox plug-in that:
 - 📄 **Import/export/publish** – Round-trip JSON files, copy payloads to the clipboard, retrieve existing configurations from Dataverse steps, or publish directly back to Create/Update steps.
 - 🔍 **Live preview** – See assembled name strings in real-time as you edit, using selected sample record data.
 - 🧰 **Plug-in validation & deployment** – Check NameBuilder assembly presence, verify version hashes, and deploy/update the plug-in from within the tool.
-- 🧰 **Scripted build pipeline** – `build.ps1` restores packages, compiles, deploys to the local XrmToolBox folder, and mirrors outputs into `Ready To Run/`.
+- 🧰 **Scripted build pipeline** – Repo-root scripts build/pack/deploy the configurator (and embed the plug-in payload into Assets for distribution).
 
 ## Installation
 
@@ -74,21 +74,25 @@ NameBuilder Configurator is a WinForms-based XrmToolBox plug-in that:
 ### Scripted build (recommended)
 
 ```pwsh
-pwsh -File .\build.ps1 -Configuration Release
+pwsh -File .\build.ps1 -Configuration Release -ConfiguratorOnly
 ```
 
 Script behavior:
 
-1. Increments `Properties/AssemblyInfo.cs`.
-2. Restores NuGet packages and runs MSBuild.
-3. Copies the plug-in + assets into `%APPDATA%\MscrmTools\XrmToolBox\Plugins`.
-4. Mirrors artifacts into `Ready To Run/` for manual distribution.
+1. Builds the configurator (and, unless restricted, the plug-in payload used in Assets).
+2. Optionally deploys the configurator into `%APPDATA%\MscrmTools\XrmToolBox\Plugins`.
+
+To create the XrmToolBox NuGet package:
+
+```pwsh
+pwsh -File .\build.ps1 -Configuration Release -Pack
+```
 
 ### Visual Studio workflow
 
-1. Open `NameBuilderConfigurator.sln`.
+1. Open the repo-root `NameBuilder.sln`.
 2. Restore NuGet packages when prompted.
-3. Build the **Release** configuration (`Ctrl+Shift+B`).
+3. Build the **Release** configuration (`Ctrl+Shift+B`) (or build the `NameBuilderConfigurator` project).
 4. Copy `bin/Release/NameBuilderConfigurator.dll` + `Assets/` into the XrmToolBox plugin folder to test.
 
 ### Testing inside XrmToolBox
@@ -164,7 +168,7 @@ Every ribbon button, dropdown, and property control now exposes a tooltip—hove
 - **Behavior summary** – Read-only text below the buttons in the property pane explains the fallback chain ("If [primaryField] is blank → use [alternateField]. If blank → default to \"[text]\".") plus any `includeIf` statements so you can sanity-check complex rules without drilling into raw JSON.
 - **Condition dialog** – Toggle between simple field comparisons (e.g., `statuscode equals 1`) and compound `anyOf`/`allOf` groups, leveraging the operator list defined in the NameBuilder schema (`equals`, `notEquals`, `contains`, `startsWith`, `isNull`, `isEmpty`, etc.).
 
-Need deeper schema detail? See [docs/USAGE.md](docs/USAGE.md) or the upstream Docs folder for examples and property references.
+Need deeper schema detail? See [Docs/USAGE.md](Docs/USAGE.md) and [../NameBuilderPlugin/Docs](../NameBuilderPlugin/Docs) for schema and plug-in examples.
 
 ## Publishing & Deployment
 
@@ -193,12 +197,12 @@ Need deeper schema detail? See [docs/USAGE.md](docs/USAGE.md) or the upstream Do
 
 ## Packaging for the XrmToolBox Store
 
-1. Produce a Release build (`pwsh -File .\build.ps1 -Configuration Release`).
-2. Run `pwsh -File .\build.ps1 -Pack` to create `artifacts\nuget\NameBuilderConfigurator.<version>.nupkg`.
+1. Produce a Release package (`pwsh -File .\build.ps1 -Configuration Release -Pack`).
+2. The output is written to `artifacts\nuget\NameBuilderConfigurator.<version>.nupkg`.
 3. Submit the package via the [Publishing a plug-in](https://github.com/MscrmTools/XrmToolBox/wiki/Publishing-a-plugin) process (supply metadata, icons, changelog, etc.).
 
 ## Support & License
 
 - File issues or feature requests in this repository.
 - Need packaging guidance? Review the [XrmToolBox wiki](https://github.com/MscrmTools/XrmToolBox/wiki/Publishing-a-plugin).
-- _License_: Add your preferred license text or SPDX identifier here.
+- _License_: See [../LICENSE](../LICENSE).

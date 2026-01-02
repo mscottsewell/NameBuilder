@@ -5,6 +5,13 @@ using System.Windows.Forms;
 
 namespace NameBuilderConfigurator
 {
+    /// <summary>
+    /// Displays a pre-publish status summary comparing the installed Dataverse plug-in vs the packaged local plug-in.
+    /// </summary>
+    /// <remarks>
+    /// This dialog is shown before publishing configuration so users can choose to proceed, cancel, or install/update
+    /// the plug-in first.
+    /// </remarks>
     internal sealed class PluginPublishPrecheckDialog : Form
     {
         private readonly TextBox detailsTextBox;
@@ -135,24 +142,39 @@ namespace NameBuilderConfigurator
 
     internal sealed class PluginPublishPrecheckInfo
     {
+        /// <summary>Friendly environment name shown in the header.</summary>
         public string EnvironmentName { get; set; }
 
+        /// <summary>True when the NameBuilder assembly exists in Dataverse.</summary>
         public bool IsInstalled { get; set; }
+        /// <summary>Assembly name registered in Dataverse (typically "NameBuilder").</summary>
         public string InstalledAssemblyName { get; set; }
+        /// <summary>Installed assembly version (from the uploaded DLL) when available.</summary>
         public string InstalledAssemblyVersion { get; set; }
+        /// <summary>Installed file version (from the uploaded DLL) when available.</summary>
         public string InstalledFileVersion { get; set; }
+        /// <summary>Raw Dataverse "version" value from pluginassembly (when available).</summary>
         public string InstalledVersion { get; set; }
+        /// <summary>Dataverse modified-on timestamp for the assembly record (when available).</summary>
         public DateTime? InstalledModifiedOn { get; set; }
 
+        /// <summary>Local path to NameBuilder.dll used for comparison and optional update.</summary>
         public string LocalAssemblyPath { get; set; }
+        /// <summary>Local assembly version read from the file.</summary>
         public string LocalAssemblyVersion { get; set; }
+        /// <summary>Local file version read from the file.</summary>
         public string LocalFileVersion { get; set; }
 
+        /// <summary>High-level comparison summary (e.g., "Installed matches local").</summary>
         public string ComparisonSummary { get; set; }
+        /// <summary>Optional warning or note to display to the user.</summary>
         public string WarningOrNote { get; set; }
+        /// <summary>Optional error message when comparison could not be computed.</summary>
         public string ErrorMessage { get; set; }
 
+        /// <summary>True when the UI should offer an update action.</summary>
         public bool CanOfferUpdate { get; set; }
+        /// <summary>Optional override text for the update button.</summary>
         public string UpdateActionText { get; set; }
     }
 }

@@ -6,27 +6,42 @@ using Microsoft.Xrm.Sdk;
 namespace NameBuilder
 {
     /// <summary>
-    /// Plugin to dynamically build the name field based on configured field values
-    /// Fires on Create and Update of specified fields
+    /// Dataverse plugin that builds a target text field (typically <c>name</c>) from other field values.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This plugin is designed for Microsoft Dataverse / Dynamics 365 and is typically registered on
+    /// <c>Create</c> and <c>Update</c> messages for the target entity.
+    /// </para>
+    /// <para>
+    /// For <c>Update</c>, Dataverse only supplies changed attributes in the <c>Target</c> entity. To build a full
+    /// name we merge the <c>Target</c> with a Pre-Image (expected image alias: <c>PreImage</c>).
+    /// </para>
+    /// <para>
+    /// Behavior is driven by JSON configuration (unsecure config) parsed by <see cref="PluginConfiguration"/>.
+    /// </para>
+    /// </remarks>
     public class NameBuilderPlugin : IPlugin
     {
         private readonly string _unsecureConfig;
-        // Secure config currently unused; removed to reduce memory footprint
+        // Secure config is accepted to match the Dataverse plugin constructor signature.
+        // This project currently relies only on unsecure config so the secure config parameter is ignored.
 
         /// <summary>
-        /// Constructor for the plugin
+        /// Initializes a new instance of the <see cref="NameBuilderPlugin"/>.
         /// </summary>
         /// <param name="unsecureConfig">Unsecure configuration (JSON format)</param>
-        /// <param name="secureConfig">Secure configuration (not used currently)</param>
+        /// <param name="secureConfig">Secure configuration (currently unused)</param>
         public NameBuilderPlugin(string unsecureConfig, string secureConfig)
         {
             _unsecureConfig = unsecureConfig;
         }
 
         /// <summary>
-        /// Main plugin execution method
+        /// Dataverse entry point invoked by the platform.
         /// </summary>
+        /// <param name="serviceProvider">Service provider containing Dataverse execution services.</param>
+        /// <exception cref="InvalidPluginExecutionException">Thrown when an unexpected error occurs.</exception>
         public void Execute(IServiceProvider serviceProvider)
         {
             // Obtain the tracing service
@@ -47,16 +62,18 @@ namespace NameBuilder
                 {
                     Entity targetEntity = (Entity)context.InputParameters["Target"];
 
-                    // Parse configuration with service for metadata-based inference
+                    // Parse configuration. If an org service is available, parsing can use metadata (e.g. infer field types,
+                    // get max length for the target field).
                     PluginConfiguration config = PluginConfiguration.Parse(_unsecureConfig, service, targetEntity.LogicalName);
 
-                    // Check if any of the configured fields are being modified
-                    // Or if this is a Create operation
+                    // Create: always build the name.
+                    // Update: build the name only when one of the configured fields changed.
                     if (context.MessageName.Equals("Create", StringComparison.OrdinalIgnoreCase) || 
                         ShouldTrigger(targetEntity, config, tracingService))
                     {
 
-                        // For Update, we need to get the full entity with all configured fields
+                        // For Update, Target only includes changed attributes. Merge it with a Pre-Image to obtain a
+                        // consistent view of all configured inputs.
                         Entity fullEntity = targetEntity;
                         
                         if (context.MessageName.Equals("Update", StringComparison.OrdinalIgnoreCase))
@@ -64,10 +81,11 @@ namespace NameBuilder
                             fullEntity = MergeWithPreImage(targetEntity, context, config, tracingService);
                         }
 
-                        // Build the name value
+                        // Build the name value using the configured pattern/fields.
+                        // When tracing is disabled in config we use a no-op tracing service to avoid work.
                         string nameValue = BuildNameValue(fullEntity, config, service, config.EnableTracing ? tracingService : new NullTracingService());
 
-                        // Set the target field (typically "name")
+                        // Assign the computed value back to the Target entity; Dataverse will persist it.
                         if (!string.IsNullOrEmpty(nameValue))
                         {
                             targetEntity[config.TargetField] = nameValue;
@@ -90,8 +108,11 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Determine if the plugin should trigger based on which fields are being updated
+        /// Determines whether an Update event should rebuild the name based on changed attributes.
         /// </summary>
+        /// <param name="targetEntity">The update Target entity containing only changed attributes.</param>
+        /// <param name="config">Parsed plugin configuration.</param>
+        /// <param name="tracingService">Tracing service (optional).</param>
         private bool ShouldTrigger(Entity targetEntity, PluginConfiguration config, ITracingService tracingService)
         {
             var configuredFields = config.GetAllFieldNames();
@@ -108,8 +129,19 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Merge target entity with PreImage to get all field values
+        /// Merges the Update Target entity with a Pre-Image to get a complete set of inputs.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Dataverse provides formatted values (labels) for some attributes (e.g. option sets). We copy formatted values
+        /// from the Pre-Image first, then prefer formatted values from Target when present.
+        /// </para>
+        /// </remarks>
+        /// <param name="targetEntity">Update target containing changed attributes.</param>
+        /// <param name="context">Plugin execution context.</param>
+        /// <param name="config">Parsed plugin configuration.</param>
+        /// <param name="tracingService">Tracing service (optional).</param>
+        /// <returns>A new entity containing merged attributes and formatted values.</returns>
         private Entity MergeWithPreImage(Entity targetEntity, IPluginExecutionContext context, 
             PluginConfiguration config, ITracingService tracingService)
         {
@@ -125,7 +157,7 @@ namespace NameBuilder
                     mergedEntity[attribute.Key] = attribute.Value;
                 }
 
-                // Copy formatted values as well (important for optionsets)
+                // Copy formatted values as well (important for option set labels).
                 foreach (var formattedValue in preImage.FormattedValues)
                 {
                     mergedEntity.FormattedValues[formattedValue.Key] = formattedValue.Value;
@@ -137,8 +169,8 @@ namespace NameBuilder
             {
                 mergedEntity[attribute.Key] = attribute.Value;
                 
-                // If this attribute was updated, remove old formatted value from PreImage
-                // so we fetch the current label for optionsets
+                // If this attribute was updated and Target did not supply a formatted value, remove the old label from
+                // the Pre-Image so downstream resolution can fall back to metadata retrieval when needed.
                 if (mergedEntity.FormattedValues.Contains(attribute.Key) && 
                     !targetEntity.FormattedValues.Contains(attribute.Key))
                 {
@@ -146,7 +178,7 @@ namespace NameBuilder
                 }
             }
 
-            // Copy formatted values from target (these contain current optionset labels)
+            // Copy formatted values from Target (these contain current labels).
             foreach (var formattedValue in targetEntity.FormattedValues)
             {
                 mergedEntity.FormattedValues[formattedValue.Key] = formattedValue.Value;
@@ -156,8 +188,13 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Build the name value by concatenating field values based on the pattern
+        /// Builds the final name value by walking the parsed pattern and concatenating literal text and field values.
         /// </summary>
+        /// <param name="entity">Entity containing attribute values used by the pattern.</param>
+        /// <param name="config">Parsed plugin configuration.</param>
+        /// <param name="service">Organization service used for lookups/metadata.</param>
+        /// <param name="tracingService">Tracing service for diagnostics.</param>
+        /// <returns>The constructed name, possibly truncated by <see cref="PluginConfiguration.MaxLength"/>.</returns>
         private string BuildNameValue(Entity entity, PluginConfiguration config, 
             IOrganizationService service, ITracingService tracingService)
         {
@@ -170,6 +207,10 @@ namespace NameBuilder
                 
                 if (part.IsField)
                 {
+                    // Field resolution includes:
+                    // - formatting (dates, numbers, currency)
+                    // - conditional inclusion
+                    // - optional alternate fields and defaults
                     string fieldValue = resolver.ResolvePatternFieldValue(entity, part);
                     if (!string.IsNullOrEmpty(fieldValue))
                     {
@@ -177,9 +218,8 @@ namespace NameBuilder
                     }
                     else if (part.IncludeIf != null)
                     {
-                        // Field was excluded due to condition - skip adjacent prefix/suffix
-                        // Mark that we skipped a conditional field so prefix/suffix can be handled
-                        // This is already handled by FieldArrayParser structure
+                        // Field was excluded due to condition. Prefix/suffix are applied within the resolver only when
+                        // a value is present, so no extra handling is needed here.
                     }
                 }
                 else
@@ -191,7 +231,7 @@ namespace NameBuilder
 
             string result = nameParts.ToString();
 
-            // Apply maxLength truncation if configured
+            // Apply maxLength truncation if configured. We reserve 3 chars for the ellipsis.
             if (config.MaxLength.HasValue && config.MaxLength.Value > 3)
             {
                 if (result.Length > config.MaxLength.Value)
@@ -206,8 +246,11 @@ namespace NameBuilder
     }
 
     /// <summary>
-    /// Tracing service that swallows traces when tracing is disabled
+    /// Tracing service implementation that discards all messages.
     /// </summary>
+    /// <remarks>
+    /// Used to avoid the overhead of creating trace strings when tracing is disabled by configuration.
+    /// </remarks>
     internal class NullTracingService : ITracingService
     {
         public void Trace(string format, params object[] args) { }

@@ -8,8 +8,11 @@ using Microsoft.Xrm.Sdk.Metadata;
 namespace NameBuilderConfigurator
 {
     /// <summary>
-    /// Simple dialog for configuring an alternate field
+    /// Dialog for configuring fallback behavior when a field is blank.
     /// </summary>
+    /// <remarks>
+    /// NameBuilder supports a two-stage fallback: first an alternate field, then a literal default value.
+    /// </remarks>
     public class AlternateFieldDialog : Form
     {
         private ComboBox fieldComboBox;
@@ -31,7 +34,14 @@ namespace NameBuilderConfigurator
             public override string ToString() => DisplayLabel ?? LogicalName ?? "(None)";
         }
         
+        /// <summary>
+        /// Alternate field configuration to use when the primary field is empty; null if not configured.
+        /// </summary>
         public FieldConfiguration Result { get; private set; }
+
+        /// <summary>
+        /// Literal default value to use when both primary and alternate fields are empty; null if not configured.
+        /// </summary>
         public string DefaultValue { get; private set; }
         
         public AlternateFieldDialog(FieldConfiguration config, string currentDefault, IEnumerable<AttributeMetadata> attributes = null)

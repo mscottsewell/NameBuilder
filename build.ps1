@@ -1,22 +1,52 @@
-<#!
-Unified build/pack orchestrator for the NameBuilder monorepo.
+<#
+.SYNOPSIS
+Build/pack orchestrator for the NameBuilder monorepo.
 
-Typical usage:
-  # Build + deploy to local XrmToolBox (default build-only unless -Pack is specified)
-  pwsh -File .\build.ps1 -Configuration Release
+.DESCRIPTION
+Builds the Dataverse plug-in (NameBuilder.dll) and/or the XrmToolBox configurator, and optionally:
+- Packs the configurator into a NuGet package (including the plug-in payload under Assets).
+- Deploys the configurator to a local XrmToolBox Plugins folder.
+- Pushes the resulting .nupkg to NuGet.
 
-  # Build + pack (+ deploy) the configurator (and ensure plugin payload in Assets)
-  pwsh -File .\build.ps1 -Configuration Release -Pack
+Versioning rules (important for Dataverse / assembly binding behavior):
+- Configurator package version is derived from the configurator AssemblyVersion.
+- Plug-in AssemblyVersion is intentionally kept fixed.
+- Plug-in AssemblyFileVersion may be bumped only when the plug-in changed in the last commit,
+    unless -SkipPluginFileVersionBump is supplied.
+- When build-only mode is active (no packing), version metadata is not mutated.
 
-  # Build + pack + deploy + push to NuGet
-  pwsh -File .\build.ps1 -Configuration Release -Pack -Push
+.PARAMETER Configuration
+Build configuration to use (Debug/Release).
 
-Notes:
-  - By default, running build.ps1 without -Pack is build-only and does not mutate version metadata.
-  - Configurator package version is derived from configurator AssemblyVersion.
-  - Plugin AssemblyVersion is never changed.
-  - Plugin AssemblyFileVersion is bumped only when the plugin was modified in the last commit
-    (i.e., committed changes), unless -SkipPluginFileVersionBump is supplied.
+.PARAMETER Pack
+Enables packaging the configurator into a NuGet package. Without -Pack, the default behavior is build-only.
+
+.PARAMETER PluginOnly
+Build only the Dataverse plug-in.
+
+.PARAMETER ConfiguratorOnly
+Build only the configurator.
+
+.PARAMETER Push
+Push the generated NuGet package to the configured source. Only applies when packaging.
+
+.PARAMETER SkipDeploy
+Skips local deployment to the XrmToolBox Plugins folder.
+
+.PARAMETER SkipVersionBump
+Skips bumping the configurator AssemblyVersion (and therefore the NuGet package version).
+
+.PARAMETER SkipPluginFileVersionBump
+Skips bumping the plug-in AssemblyFileVersion.
+
+.EXAMPLE
+pwsh -File .\build.ps1 -Configuration Release
+
+.EXAMPLE
+pwsh -File .\build.ps1 -Configuration Release -Pack
+
+.EXAMPLE
+pwsh -File .\build.ps1 -Configuration Release -Pack -Push
 #>
 
 param(
@@ -506,7 +536,7 @@ if ($buildConfigurator -or $doPack) {
     # The configurator package expects the plugin payload in Assets/DataversePlugin.
     if ($buildPlugin -and $doBuild -and (-not $skipPluginBuild)) {
         Write-Info "Building Plugin ($Configuration)..."
-        & pwsh -NoProfile -File (Join-Path $pluginDir "build.ps1") -Configuration $Configuration -Framework "net462" -Solution ".\NameBuilder.sln" -TargetFolder $assetsPluginDir -RelativeFallback (Join-Path $configDir "Assets\DataversePlugin")
+        & pwsh -NoProfile -File (Join-Path $pluginDir "build.ps1") -Configuration $Configuration -Framework "net462" -Solution ".\NameBuilder.csproj" -TargetFolder $assetsPluginDir -RelativeFallback (Join-Path $configDir "Assets\DataversePlugin")
     } else {
         if ($skipPluginBuild) {
             Write-Info "Plugin unchanged; skipping plugin build (using existing binaries)"
@@ -526,7 +556,7 @@ if ($buildConfigurator -or $doPack) {
 } elseif ($buildPlugin -and $doBuild) {
     # Plugin-only build.
     Write-Info "Building Plugin ($Configuration)..."
-    & pwsh -NoProfile -File (Join-Path $pluginDir "build.ps1") -Configuration $Configuration -Framework "net462" -Solution ".\NameBuilder.sln" -TargetFolder $assetsPluginDir -RelativeFallback (Join-Path $configDir "Assets\DataversePlugin")
+    & pwsh -NoProfile -File (Join-Path $pluginDir "build.ps1") -Configuration $Configuration -Framework "net462" -Solution ".\NameBuilder.csproj" -TargetFolder $assetsPluginDir -RelativeFallback (Join-Path $configDir "Assets\DataversePlugin")
 }
 
 # Report plugin version metadata and binary versions (whether rebuilt or reused)

@@ -7,8 +7,19 @@ using Microsoft.Xrm.Sdk.Metadata;
 namespace NameBuilder
 {
     /// <summary>
-    /// Helper class to resolve field values from different field types
+    /// Resolves Dataverse attribute values into displayable strings according to pattern configuration.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This class encapsulates the Dataverse-specific rules and edge cases for converting attributes into text:
+    /// lookups (entity references), option sets (labels), dates (format + optional timezone adjustment), and
+    /// numeric/currency formatting.
+    /// </para>
+    /// <para>
+    /// Some operations require metadata (e.g., option set labels when no formatted value is present). To keep the
+    /// plugin fast, metadata results are cached in static, thread-safe dictionaries.
+    /// </para>
+    /// </remarks>
     public class FieldValueResolver
     {
         private readonly IOrganizationService _service;
@@ -20,6 +31,11 @@ namespace NameBuilder
         // Cache field type metadata: key = entity|fieldname, value = AttributeTypeCode
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Microsoft.Xrm.Sdk.Metadata.AttributeTypeCode> _fieldTypeCache = new System.Collections.Concurrent.ConcurrentDictionary<string, Microsoft.Xrm.Sdk.Metadata.AttributeTypeCode>();
 
+        /// <summary>
+        /// Creates a new resolver.
+        /// </summary>
+        /// <param name="service">Dataverse organization service used for lookups and metadata.</param>
+        /// <param name="tracingService">Tracing service for diagnostics.</param>
         public FieldValueResolver(IOrganizationService service, ITracingService tracingService)
         {
             _service = service ?? throw new ArgumentNullException(nameof(service));
@@ -27,8 +43,21 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Resolve the string value for a field from a PatternPart
+        /// Resolves the string value for a single <see cref="PatternPart"/>.
         /// </summary>
+        /// <remarks>
+        /// Handles:
+        /// <list type="bullet">
+        /// <item><description>Conditional inclusion via <see cref="PatternPart.IncludeIf"/></description></item>
+        /// <item><description>Alternate fields via <see cref="PatternPart.AlternateField"/></description></item>
+        /// <item><description>Defaults via <see cref="PatternPart.DefaultValue"/></description></item>
+        /// <item><description>Per-field truncation via <see cref="PatternPart.MaxFieldLength"/></description></item>
+        /// <item><description>Prefix/suffix wrapping via <see cref="PatternPart.Prefix"/> and <see cref="PatternPart.Suffix"/></description></item>
+        /// </list>
+        /// </remarks>
+        /// <param name="entity">Entity providing attribute values.</param>
+        /// <param name="patternPart">Pattern part to resolve.</param>
+        /// <returns>Resolved text (possibly empty).</returns>
         public string ResolvePatternFieldValue(Entity entity, PatternPart patternPart)
         {
             if (patternPart == null)
@@ -47,6 +76,7 @@ namespace NameBuilder
                 bool conditionMet = ConditionEvaluator.EvaluateCondition(entity, patternPart.IncludeIf, _tracingService);
                 if (!conditionMet)
                 {
+                    // Excluding the value here ensures prefix/suffix are also skipped.
                     _tracingService.Trace($"Condition not met for field '{patternPart.FieldName}', excluding from output");
                     return string.Empty;
                 }
@@ -57,6 +87,7 @@ namespace NameBuilder
                 // Try alternate field if specified
                 if (patternPart.AlternateField != null)
                 {
+                    // Create a derived PatternPart for the alternate field, inheriting any defaults not specified.
                     var alternatePart = new PatternPart
                     {
                         IsField = true,
@@ -182,7 +213,7 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Wrap field value with prefix and suffix if they exist
+        /// Wraps a resolved field value with prefix/suffix when configured.
         /// </summary>
         private string WrapWithPrefixSuffix(string value, PatternPart patternPart)
         {
@@ -207,6 +238,9 @@ namespace NameBuilder
         /// Resolve numeric field value with optional formatting.
         /// Supports standard .NET numeric formats (e.g., "#,##0.00") and K/M/B scaling like "0.0K", "0.00M", "0B".
         /// </summary>
+        /// <remarks>
+        /// If the underlying attribute type is not a numeric CLR type, this falls back to <see cref="object.ToString"/>.
+        /// </remarks>
         private string ResolveNumberField(Entity entity, string fieldName, string format)
         {
             // Handle integer, decimal, double as object and convert to decimal for consistency
@@ -274,6 +308,10 @@ namespace NameBuilder
         /// Resolve currency field value with optional formatting and currency symbol.
         /// Money fields are Microsoft.Xrm.Sdk.Money; symbol is retrieved from transactioncurrencyid.currencysymbol.
         /// </summary>
+        /// <remarks>
+        /// Currency symbol lookup requires a retrieve call to the <c>transactioncurrency</c> table; results are cached
+        /// in-memory by currency id.
+        /// </remarks>
         private string ResolveCurrencyField(Entity entity, string fieldName, string format, Entity fullEntity)
         {
             var money = entity.GetAttributeValue<Money>(fieldName);
@@ -357,7 +395,7 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Resolve string field value
+        /// Resolves a simple text attribute.
         /// </summary>
         private string ResolveStringField(Entity entity, string fieldName)
         {
@@ -366,8 +404,12 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Resolve lookup field value (returns the name, not the GUID)
+        /// Resolves a lookup attribute into the referenced record's primary name.
         /// </summary>
+        /// <remarks>
+        /// Dataverse often supplies <see cref="EntityReference.Name"/>; when it is missing we retrieve the referenced
+        /// record's primary name attribute.
+        /// </remarks>
         private string ResolveLookupField(Entity entity, string fieldName)
         {
             var lookup = entity.GetAttributeValue<EntityReference>(fieldName);
@@ -412,8 +454,15 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Resolve date field value with formatting
+        /// Resolves a date/datetime attribute with formatting.
         /// </summary>
+        /// <param name="entity">Entity containing the attribute.</param>
+        /// <param name="fieldName">Attribute logical name.</param>
+        /// <param name="dateFormat">.NET date format string.</param>
+        /// <param name="timezoneOffsetHours">
+        /// Optional timezone offset (hours) applied to the stored value before formatting.
+        /// Dataverse stores DateTime values in UTC in many scenarios; this is a simple display-time adjustment.
+        /// </param>
         private string ResolveDateField(Entity entity, string fieldName, string dateFormat, double? timezoneOffsetHours = null)
         {
 
@@ -441,8 +490,12 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Resolve optionset field value (returns the label, not the numeric value)
+        /// Resolves an option set attribute into its display label.
         /// </summary>
+        /// <remarks>
+        /// Preferred source is <see cref="Entity.FormattedValues"/>. If not present, metadata is queried to map
+        /// the numeric value to a label.
+        /// </remarks>
         private string ResolveOptionSetField(Entity entity, string fieldName)
         {
             var optionSet = entity.GetAttributeValue<OptionSetValue>(fieldName);
@@ -499,8 +552,11 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Get the primary name attribute for an entity type using metadata
+        /// Gets the primary name attribute for an entity type using metadata.
         /// </summary>
+        /// <remarks>
+        /// The primary name attribute is usually <c>name</c>, but custom entities may differ.
+        /// </remarks>
         private string GetPrimaryNameAttribute(string entityLogicalName)
         {
             // Check cache first
@@ -533,8 +589,11 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Get field attribute type from metadata
+        /// Retrieves the Dataverse metadata attribute type for a field.
         /// </summary>
+        /// <remarks>
+        /// This is useful when parsing patterns or when type inference from naming conventions is insufficient.
+        /// </remarks>
         public Microsoft.Xrm.Sdk.Metadata.AttributeTypeCode? GetFieldType(string entityLogicalName, string fieldName)
         {
             string cacheKey = entityLogicalName + "|" + fieldName;

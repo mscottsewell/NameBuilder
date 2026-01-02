@@ -4,15 +4,27 @@ using System.Windows.Forms;
 
 namespace NameBuilderConfigurator
 {
+    /// <summary>
+    /// Dialog that asks which plug-in steps (Create/Update) should receive the configuration payload.
+    /// </summary>
     internal class PublishTargetsDialog : Form
     {
         private readonly CheckBox insertCheckBox;
         private readonly CheckBox updateCheckBox;
         private readonly Button okButton;
 
+        /// <summary>True if the Create (Insert) step should be published/updated.</summary>
         public bool PublishInsert => insertCheckBox.Checked;
+
+        /// <summary>True if the Update step should be published/updated.</summary>
         public bool PublishUpdate => updateCheckBox.Checked;
 
+        /// <summary>
+        /// Creates the dialog.
+        /// </summary>
+        /// <param name="entityDisplayName">Friendly name of the target entity.</param>
+        /// <param name="insertExists">Whether a Create step already exists in Dataverse.</param>
+        /// <param name="updateExists">Whether an Update step already exists in Dataverse.</param>
         public PublishTargetsDialog(string entityDisplayName, bool insertExists, bool updateExists)
         {
             Text = "Publish Configuration";

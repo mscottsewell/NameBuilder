@@ -1,5 +1,31 @@
 <#
-Builds the NameBuilder solution and copies the plugin DLL into the configurator assets folder.
+.SYNOPSIS
+Builds the plug-in and updates the configurator's embedded plug-in payload.
+
+.DESCRIPTION
+Builds the NameBuilder plug-in project/solution and copies the resulting NameBuilder.dll into the
+configurator Assets folder (used when packaging the configurator and when deploying to XrmToolBox).
+
+This script is intentionally small and project-scoped; the repo-root build.ps1 handles monorepo
+build/pack/deploy orchestration.
+
+.PARAMETER Configuration
+Build configuration to use.
+
+.PARAMETER Framework
+Target framework moniker used to locate the output DLL.
+
+.PARAMETER Solution
+Project or solution to build (e.g., a .csproj or .sln path).
+
+.PARAMETER TargetFolder
+Primary absolute path to the configurator Assets/DataversePlugin folder.
+
+.PARAMETER RelativeFallback
+Fallback relative path (from this script root) used if TargetFolder is unavailable.
+
+.EXAMPLE
+pwsh -File .\NameBuilderPlugin\build.ps1 -Configuration Release
 #>
 param(
     [ValidateNotNullOrEmpty()]
@@ -9,7 +35,7 @@ param(
     [string]$Framework = "net462",
 
     [ValidateNotNullOrEmpty()]
-    [string]$Solution = ".\NameBuilder.sln",
+    [string]$Solution = ".\NameBuilder.csproj",
 
     [ValidateNotNullOrEmpty()]
     [string]$TargetFolder = "C:\GitHub\NameBuilder\NameBuilderConfigurator\Assets\DataversePlugin",

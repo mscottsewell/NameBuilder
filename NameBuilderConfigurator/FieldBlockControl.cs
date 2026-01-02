@@ -6,8 +6,12 @@ using Microsoft.Xrm.Sdk.Metadata;
 namespace NameBuilderConfigurator
 {
     /// <summary>
-    /// Represents a single field configuration block in the visual builder
+    /// Represents one field configuration block in the visual builder.
     /// </summary>
+    /// <remarks>
+    /// A block corresponds to a single <see cref="FieldConfiguration"/> entry. The control is hosted in a
+    /// <see cref="FlowLayoutPanel"/> and is resized by the parent.
+    /// </remarks>
     public class FieldBlockControl : UserControl
     {
         private Label fieldLabel;
@@ -18,16 +22,39 @@ namespace NameBuilderConfigurator
         private Button upButton;
         private Button downButton;
         
+        /// <summary>The configuration payload this block represents.</summary>
         public FieldConfiguration Configuration { get; set; }
+
+        /// <summary>
+        /// Optional Dataverse attribute metadata used to show a friendly display name.
+        /// </summary>
         public AttributeMetadata AttributeMetadata { get; set; }
+
+        /// <summary>
+        /// Controls whether the left-side handle (with up/down arrows) is shown.
+        /// </summary>
         public bool ShowDragHandle { get; set; } = true;
         
+        /// <summary>Raised when the block is clicked to edit its settings.</summary>
         public event EventHandler EditClicked;
+
+        /// <summary>Raised when the user clicks the delete button.</summary>
         public event EventHandler DeleteClicked;
+
+        /// <summary>Raised when the user clicks the drag handle area.</summary>
         public event EventHandler DragHandleClicked;
+
+        /// <summary>Raised when the user requests moving the block up.</summary>
         public event EventHandler MoveUpClicked;
+
+        /// <summary>Raised when the user requests moving the block down.</summary>
         public event EventHandler MoveDownClicked;
         
+        /// <summary>
+        /// Creates a new block control for a given field configuration.
+        /// </summary>
+        /// <param name="config">The field configuration to edit/display.</param>
+        /// <param name="attrMetadata">Optional Dataverse metadata used for display labels.</param>
         public FieldBlockControl(FieldConfiguration config, AttributeMetadata attrMetadata = null)
         {
             Configuration = config;
@@ -175,11 +202,17 @@ namespace NameBuilderConfigurator
             this.ResumeLayout();
         }
         
+        /// <summary>
+        /// Shows/hides the drop indicator used during drag-and-drop reordering.
+        /// </summary>
         public void ShowDragIndicator(bool show)
         {
             dragIndicator.Visible = show;
         }
         
+        /// <summary>
+        /// Highlights the drag handle to reflect selection or active drag state.
+        /// </summary>
         public void HighlightDragHandle(bool highlight)
         {
             if (dragHandle != null)
@@ -188,12 +221,18 @@ namespace NameBuilderConfigurator
             }
         }
         
+        /// <summary>
+        /// Toggles visibility of the up/down reorder buttons.
+        /// </summary>
         public void SetMoveButtonsVisible(bool showUp, bool showDown)
         {
             if (upButton != null) upButton.Visible = showUp;
             if (downButton != null) downButton.Visible = showDown;
         }
         
+        /// <summary>
+        /// Refreshes the displayed text based on the current configuration.
+        /// </summary>
         public void UpdateDisplay()
         {
             if (Configuration == null) return;

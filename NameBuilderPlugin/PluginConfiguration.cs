@@ -9,12 +9,18 @@ using System.IO;
 namespace NameBuilder
 {
     /// <summary>
-    /// Configuration model for the Name Builder Plugin
+    /// Configuration model for the Name Builder plugin.
     /// </summary>
+    /// <remarks>
+    /// This type is deserialized from JSON provided as the plugin's unsecure configuration string.
+    /// The configuration can be expressed either as a single <see cref="Pattern"/> string or as a structured
+    /// array of <see cref="FieldConfiguration"/> entries.
+    /// </remarks>
     [DataContract]
     public class PluginConfiguration
     {
-        // Cache parsed configurations to avoid reparsing JSON each invocation
+        // Cache parsed configurations to avoid re-parsing JSON for every invocation.
+        // Key is the raw JSON string. This keeps parsing costs low but means changes to config require a plugin reload.
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, PluginConfiguration> _configCache = new System.Collections.Concurrent.ConcurrentDictionary<string, PluginConfiguration>();
         /// <summary>
         /// Target field to populate (typically "name")
@@ -33,6 +39,10 @@ namespace NameBuilder
         /// Pattern string defining the format (e.g., "createdon | ownerid - statuscode")
         /// Supports inline delimiters and field type specifications.
         /// </summary>
+        /// <remarks>
+        /// Pattern parsing is performed by <see cref="PatternParser"/>.
+        /// If <see cref="Fields"/> is provided, it takes precedence over this property.
+        /// </remarks>
         [DataMember(Name = "pattern")]
         public string Pattern { get; set; }
 
@@ -40,6 +50,10 @@ namespace NameBuilder
         /// Array of field configurations (alternative to pattern)
         /// If specified, this takes precedence over pattern
         /// </summary>
+        /// <remarks>
+        /// Use <see cref="FieldConfiguration"/> when you want explicit per-field settings like
+        /// conditional inclusion, prefixes/suffixes, alternate fields, or truncation.
+        /// </remarks>
         [DataMember(Name = "fields")]
         public List<FieldConfiguration> Fields { get; set; }
 
@@ -53,6 +67,9 @@ namespace NameBuilder
         /// <summary>
         /// Parsed pattern parts (populated automatically from Pattern or Fields)
         /// </summary>
+        /// <remarks>
+        /// This is computed during <see cref="Parse"/>. It is not a serialized JSON field.
+        /// </remarks>
         public List<PatternPart> ParsedPatternParts { get; set; }
 
         public PluginConfiguration()
@@ -62,8 +79,17 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Parse configuration from JSON string and populate maxLength from metadata if not specified
+        /// Parses configuration from JSON and computes <see cref="ParsedPatternParts"/>.
         /// </summary>
+        /// <param name="jsonConfig">Raw JSON configuration string.</param>
+        /// <param name="service">
+        /// Optional organization service used for metadata-based inference (field types, target field length).
+        /// When null, parsing falls back to naming conventions.
+        /// </param>
+        /// <param name="entityLogicalName">Logical name of the target entity (used for metadata lookup).</param>
+        /// <returns>A parsed configuration instance. Calls may return a cached instance.</returns>
+        /// <exception cref="ArgumentException">Thrown when <paramref name="jsonConfig"/> is empty.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when configuration is invalid or cannot be parsed.</exception>
         public static PluginConfiguration Parse(string jsonConfig, Microsoft.Xrm.Sdk.IOrganizationService service, string entityLogicalName)
         {
             if (string.IsNullOrWhiteSpace(jsonConfig))
@@ -84,15 +110,15 @@ namespace NameBuilder
                     var serializer = new DataContractJsonSerializer(typeof(PluginConfiguration));
                     var config = (PluginConfiguration)serializer.ReadObject(ms);
                     
-                    // Use fields array if provided, otherwise use pattern
+                    // Use fields array if provided, otherwise use the pattern string.
                     if (config.Fields != null && config.Fields.Count > 0)
                     {
-                        // Convert fields array to pattern parts
+                        // Convert the structured fields array to pattern parts.
                         config.ParsedPatternParts = FieldArrayParser.Parse(config.Fields, service, entityLogicalName);
                     }
                     else if (!string.IsNullOrWhiteSpace(config.Pattern))
                     {
-                        // Parse pattern string
+                        // Parse pattern string to pattern parts.
                         config.ParsedPatternParts = PatternParser.Parse(config.Pattern, service, entityLogicalName);
                     }
                     else
@@ -100,7 +126,7 @@ namespace NameBuilder
                         throw new InvalidOperationException("Either 'pattern' or 'fields' must be configured");
                     }
 
-                    // Set default maxLength from target field metadata if not specified
+                    // Set default maxLength from target field metadata if not specified.
                     if (!config.MaxLength.HasValue && service != null)
                     {
                         config.MaxLength = GetTargetFieldMaxLength(service, entityLogicalName, config.TargetField);
@@ -118,7 +144,7 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Get the max length of the target field from metadata
+        /// Gets the max length of the target field from Dataverse metadata.
         /// </summary>
         private static int? GetTargetFieldMaxLength(Microsoft.Xrm.Sdk.IOrganizationService service, string entityLogicalName, string fieldName)
         {
@@ -147,7 +173,7 @@ namespace NameBuilder
         }
 
         /// <summary>
-        /// Get list of all field names referenced in the pattern
+        /// Gets a list of all attribute logical names referenced by the parsed configuration.
         /// </summary>
         public List<string> GetAllFieldNames()
         {
@@ -181,12 +207,12 @@ namespace NameBuilder
         public string FieldName { get; set; }
 
         /// <summary>
-        /// Field type specification (e.g., "date:yyyy-MM-dd" or "lookup")
+        /// Field type specification (e.g., <c>date</c>, <c>lookup</c>, <c>optionset</c>).
         /// </summary>
         public string FieldType { get; set; }
 
         /// <summary>
-        /// Date format (parsed from FieldType if specified)
+        /// Date format used when <see cref="FieldType"/> is <c>date</c> or <c>datetime</c>.
         /// </summary>
         public string DateFormat { get; set; }
 
@@ -206,12 +232,12 @@ namespace NameBuilder
         public string DefaultValue { get; set; }
 
         /// <summary>
-        /// Alternate field configuration
+        /// Alternate field configuration to use when the primary field is missing or empty.
         /// </summary>
         public FieldConfiguration AlternateField { get; set; }
 
         /// <summary>
-        /// Literal text value (if IsField = false)
+        /// Literal text value (when <see cref="IsField"/> is <c>false</c>).
         /// </summary>
         public string LiteralText { get; set; }
 
@@ -221,7 +247,7 @@ namespace NameBuilder
         public double? TimezoneOffsetHours { get; set; }
 
         /// <summary>
-        /// Condition for conditional field inclusion
+        /// Condition for conditional field inclusion.
         /// </summary>
         public FieldCondition IncludeIf { get; set; }
 
@@ -252,6 +278,14 @@ namespace NameBuilder
         /// Examples: "createdon:date:yyyy-MM-dd | ownerid:lookup - statuscode:optionset"
         /// Literal text can be quoted: "'CASE-'ticketnumber" or use non-field characters as delimiters
         /// </summary>
+        /// <remarks>
+        /// The parser alternates between:
+        /// <list type="bullet">
+        /// <item><description>Field tokens (letters/digits/underscore)</description></item>
+        /// <item><description>Literal delimiters (any other characters)</description></item>
+        /// </list>
+        /// Quoted sections are always treated as literals.
+        /// </remarks>
         public static List<PatternPart> Parse(string pattern, Microsoft.Xrm.Sdk.IOrganizationService service = null, string entityLogicalName = null)
         {
             var parts = new List<PatternPart>();
@@ -402,6 +436,9 @@ namespace NameBuilder
         /// Parse a field specification like "createdon:date:yyyy-MM-dd"
         /// Format: fieldname[:type[:format]]
         /// </summary>
+        /// <remarks>
+        /// If type is omitted, <see cref="InferFieldType"/> is used.
+        /// </remarks>
         private static PatternPart ParseFieldPart(string fieldSpec, Microsoft.Xrm.Sdk.IOrganizationService service, string entityLogicalName)
         {
             var part = new PatternPart { IsField = true };
@@ -433,6 +470,10 @@ namespace NameBuilder
         /// <summary>
         /// Infer field type based on metadata or naming conventions
         /// </summary>
+        /// <remarks>
+        /// Metadata-based inference is preferred when an org service is available. When metadata cannot be retrieved,
+        /// the method falls back to a simple naming convention heuristic.
+        /// </remarks>
         public static string InferFieldType(string fieldName, Microsoft.Xrm.Sdk.IOrganizationService service = null, string entityLogicalName = null)
         {
             // Try metadata-based inference first if service is available
@@ -529,7 +570,7 @@ namespace NameBuilder
         public string Type { get; set; }
 
         /// <summary>
-        /// Format for date/datetime/number fields
+        /// Format for date/datetime/number/currency fields.
         /// </summary>
         [DataMember(Name = "format")]
         public string Format { get; set; }
@@ -553,7 +594,7 @@ namespace NameBuilder
         public string Default { get; set; }
 
         /// <summary>
-        /// Alternate field to use if primary field is null or empty
+        /// Alternate field to use if primary field is null or empty.
         /// </summary>
         [DataMember(Name = "alternateField")]
         public FieldConfiguration AlternateField { get; set; }
@@ -599,20 +640,32 @@ namespace NameBuilder
         /// <summary>
         /// Field name to check the condition against
         /// </summary>
-            [DataMember(Name = "field", EmitDefaultValue = false)]
-            public string Field { get; set; }
+        [DataMember(Name = "field", EmitDefaultValue = false)]
+        public string Field { get; set; }
 
-            [DataMember(Name = "operator", EmitDefaultValue = false)]
-            public string Operator { get; set; }
+        /// <summary>
+        /// Operator name (case-insensitive). See <see cref="ConditionEvaluator"/> for supported values.
+        /// </summary>
+        [DataMember(Name = "operator", EmitDefaultValue = false)]
+        public string Operator { get; set; }
 
-            [DataMember(Name = "value", EmitDefaultValue = false)]
-            public string Value { get; set; }
+        /// <summary>
+        /// Expected value (string form). Some operators (e.g., <c>in</c>) treat this as a comma-separated list.
+        /// </summary>
+        [DataMember(Name = "value", EmitDefaultValue = false)]
+        public string Value { get; set; }
 
-            [DataMember(Name = "anyOf", EmitDefaultValue = false)]
-            public List<FieldCondition> AnyOf { get; set; }
+        /// <summary>
+        /// OR composition: condition is met when any child condition is met.
+        /// </summary>
+        [DataMember(Name = "anyOf", EmitDefaultValue = false)]
+        public List<FieldCondition> AnyOf { get; set; }
 
-            [DataMember(Name = "allOf", EmitDefaultValue = false)]
-            public List<FieldCondition> AllOf { get; set; }
+        /// <summary>
+        /// AND composition: condition is met only when all child conditions are met.
+        /// </summary>
+        [DataMember(Name = "allOf", EmitDefaultValue = false)]
+        public List<FieldCondition> AllOf { get; set; }
     }
 
     /// <summary>
@@ -621,8 +674,12 @@ namespace NameBuilder
     public static class FieldArrayParser
     {
         /// <summary>
-        /// Convert field configurations to pattern parts
+        /// Converts structured field configurations into pattern parts.
         /// </summary>
+        /// <remarks>
+        /// The structured form supports additional features that are awkward in the free-form pattern string,
+        /// such as prefix/suffix and conditional inclusion.
+        /// </remarks>
         public static List<PatternPart> Parse(List<FieldConfiguration> fields, Microsoft.Xrm.Sdk.IOrganizationService service = null, string entityLogicalName = null)
         {
             var parts = new List<PatternPart>();

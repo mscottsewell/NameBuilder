@@ -6,23 +6,43 @@ using System.Windows.Forms;
 
 namespace NameBuilderConfigurator
 {
+    /// <summary>
+    /// Lightweight representation of a Dataverse plug-in type (plugintype).
+    /// </summary>
     internal class PluginTypeInfo
     {
+        /// <summary>Dataverse plugintype id.</summary>
         public Guid PluginTypeId { get; set; }
+
+        /// <summary>Display name (may be null/empty in some environments).</summary>
         public string Name { get; set; }
+
+        /// <summary>Fully-qualified CLR type name (namespace + class name).</summary>
         public string TypeName { get; set; }
 
         public override string ToString() => string.IsNullOrWhiteSpace(Name) ? TypeName : Name;
     }
 
+    /// <summary>
+    /// Dialog that lets the user pick which registered plug-in type should be treated as "NameBuilder".
+    /// </summary>
+    /// <remarks>
+    /// Some environments may have multiple types under the same assembly (e.g., old versions or multiple plug-ins).
+    /// This dialog provides a deterministic way to choose.
+    /// </remarks>
     internal class PluginTypeSelectionDialog : Form
     {
         private readonly ListView typeListView;
         private readonly Button okButton;
         private readonly Button cancelButton;
 
+        /// <summary>The plug-in type chosen by the user.</summary>
         public PluginTypeInfo SelectedType { get; private set; }
 
+        /// <summary>
+        /// Creates the dialog.
+        /// </summary>
+        /// <param name="types">Candidate plug-in types discovered in Dataverse.</param>
         public PluginTypeSelectionDialog(IEnumerable<PluginTypeInfo> types)
         {
             Text = "Select Plugin Type";

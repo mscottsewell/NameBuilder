@@ -8,8 +8,12 @@ using Microsoft.Xrm.Sdk.Metadata;
 namespace  NameBuilderConfigurator
 {
     /// <summary>
-    /// Dialog for configuring field conditions (includeIf)
+    /// Dialog for configuring field conditions (includeIf).
     /// </summary>
+    /// <remarks>
+    /// Conditions control whether a field block is included when NameBuilder builds the final name.
+    /// This dialog supports a simple single-condition form and a compound anyOf/allOf JSON form.
+    /// </remarks>
     public class ConditionDialog : Form
     {
         private RadioButton simpleRadio;
@@ -33,6 +37,7 @@ namespace  NameBuilderConfigurator
         private Button removeButton;
         private readonly ToolTip helpToolTip;
         
+        /// <summary>The configured condition when the dialog returns OK; null means "always include".</summary>
         public FieldCondition Result { get; private set; }
         
         private readonly List<AttributeMetadata> availableAttributes;

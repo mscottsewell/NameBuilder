@@ -6,6 +6,12 @@ using System.Windows.Forms;
 
 namespace NameBuilderConfigurator
 {
+    /// <summary>
+    /// Dialog that selects which Dataverse solution should own the NameBuilder plug-in assembly and step components.
+    /// </summary>
+    /// <remarks>
+    /// This choice is persisted per-connection so future publishes reuse the same solution.
+    /// </remarks>
     public class PluginSolutionSelectionDialog : Form
     {
         private ComboBox solutionComboBox;
@@ -14,9 +20,17 @@ namespace NameBuilderConfigurator
         private Label instructionLabel;
         private List<SolutionItem> solutions;
 
+        /// <summary>The selected solution id, or null if nothing was selected.</summary>
         public Guid? SelectedSolutionId { get; private set; }
+
+        /// <summary>The selected solution unique name (used by AddSolutionComponent requests).</summary>
         public string SelectedSolutionUniqueName { get; private set; }
 
+        /// <summary>
+        /// Creates the dialog.
+        /// </summary>
+        /// <param name="availableSolutions">Solutions available in the environment.</param>
+        /// <param name="currentSolutionId">Previously selected solution (if any).</param>
         public PluginSolutionSelectionDialog(List<SolutionItem> availableSolutions, Guid? currentSolutionId)
         {
             solutions = availableSolutions ?? new List<SolutionItem>();

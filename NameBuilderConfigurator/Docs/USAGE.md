@@ -36,7 +36,7 @@ Restart XrmToolBox and the plug-in appears in the tool list.
    - Script increments `Properties/AssemblyInfo.cs`, restores NuGet packages, runs MSBuild, deploys the DLL + `Assets` into `%APPDATA%\MscrmTools\XrmToolBox\Plugins`, and mirrors everything into `Ready To Run/`.
 3. Launch XrmToolBox and open **NameBuilder Configurator**.
 
-> VS workflow: open `NameBuilderConfigurator.sln`, restore packages, build Release, then copy `bin\Release\NameBuilderConfigurator.dll` plus the `Assets` folder into `%APPDATA%\MscrmTools\XrmToolBox\Plugins`.
+> VS workflow: open the repo-root `NameBuilder.sln`, restore packages, build Release (or just build the `NameBuilderConfigurator` project), then copy `bin\Release\NameBuilderConfigurator.dll` plus the `Assets` folder into `%APPDATA%\MscrmTools\XrmToolBox\Plugins`.
 
 ## 4. Connection Lifecycle & Plug-in Verification
 

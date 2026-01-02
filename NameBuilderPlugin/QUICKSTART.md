@@ -17,18 +17,19 @@
 
 ### 1. Build the Plugin
 
+From the repo root (recommended):
+
 ```powershell
-# Navigate to the solution directory
-cd C:\DataverseNamePlugin
-
-# Restore NuGet packages
-dotnet restore
-
-# Build in Release mode
-dotnet build --configuration Release
+pwsh -File .\build.ps1 -Configuration Release -PluginOnly
 ```
 
-The compiled DLL will be at: `DataverseNamePlugin\bin\Release\net462\DataverseNameBuilder.dll`
+Or from the plug-in folder:
+
+```powershell
+pwsh -File .\NameBuilderPlugin\build.ps1 -Configuration Release
+```
+
+The compiled DLL will be at: `NameBuilderPlugin\bin\Release\net462\NameBuilder.dll`
 
 ### 2. Open Plugin Registration Tool
 
@@ -38,7 +39,7 @@ The compiled DLL will be at: `DataverseNamePlugin\bin\Release\net462\DataverseNa
 
 ### 3. Register the Assembly
 
-1. Click **Browse** and select `DataverseNameBuilder.dll`
+1. Click **Browse** and select `NameBuilder.dll`
 2. Select **Sandbox** isolation mode
 3. Click **Register Selected Plugins**
 
@@ -173,7 +174,7 @@ Set `enableTracing` back to `false` (or remove it) for normal operation.
 
 ## Next Steps
 
-- Review [EXAMPLES.md](EXAMPLES.md) for more configuration examples
+- Review [Docs/EXAMPLES.md](Docs/EXAMPLES.md) for more configuration examples
 - Read [README.md](README.md) for detailed documentation
 - Customize date formats to match your regional preferences
 - Add prefix/suffix for better formatting
