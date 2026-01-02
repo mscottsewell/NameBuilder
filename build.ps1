@@ -395,7 +395,10 @@ function Write-DryRunPlan {
         [bool]$SkipDeploy,
         [bool]$Push,
         [bool]$SkipPush,
-        [string]$NugetSource
+        [string]$NugetSource,
+        [string]$NuspecPath,
+        [string]$NugetApiKey,
+        [bool]$NugetApiKeyWasExplicit
     )
 
     Write-Host "" 
@@ -417,6 +420,34 @@ function Write-DryRunPlan {
         $cfgCurrent = Get-AssemblyVersionFromAssemblyInfo -AssemblyInfoPath $ConfigAssemblyInfo
         $cfgNext = if ($DoBuild -and $BuildConfigurator -and (-not $SkipConfiguratorVersionBump)) { Increment-Revision -VersionString $cfgCurrent } else { $cfgCurrent }
         Write-Info "Configurator version: $cfgCurrent -> $cfgNext"
+
+        if ($willPush) {
+            $pkgId = $null
+            if ($NuspecPath -and (Test-Path $NuspecPath)) {
+                try {
+                    [xml]$x = Get-Content -Path $NuspecPath
+                    $nsUri = $x.DocumentElement.NamespaceURI
+                    $ns = New-Object System.Xml.XmlNamespaceManager($x.NameTable)
+                    $ns.AddNamespace('n', $nsUri)
+                    $idNode = $x.SelectSingleNode('//n:package/n:metadata/n:id', $ns)
+                    if ($idNode -and -not [string]::IsNullOrWhiteSpace($idNode.InnerText)) {
+                        $pkgId = $idNode.InnerText.Trim()
+                    }
+                } catch { }
+            }
+            if ([string]::IsNullOrWhiteSpace($pkgId)) { $pkgId = 'NameBuilderConfigurator' }
+
+            $keyProvided = -not [string]::IsNullOrWhiteSpace($NugetApiKey)
+            $keyLen = if ($keyProvided) { $NugetApiKey.Length } else { 0 }
+            $keySource = if ($NugetApiKeyWasExplicit) { '-NugetApiKey parameter' } else { 'NUGET_API_KEY environment variable' }
+            $nupkg = Join-Path (Join-Path $RepoRoot 'artifacts\nuget') "$pkgId.$cfgNext.nupkg"
+
+            Write-Info "NuGet push details (dry-run):"
+            Write-Info "  PackageId:  $pkgId"
+            Write-Info "  Version:    $cfgNext"
+            Write-Info "  Nupkg:      $nupkg"
+            Write-Info "  ApiKey:     $keyProvided via $keySource (length=$keyLen)"
+        }
     } catch {
         Write-Warning "Configurator version: unable to read ($($_.Exception.Message))"
     }
@@ -498,6 +529,9 @@ if ($DryRun) {
         Push = [bool]$Push
         SkipPush = [bool]$SkipPush
         NugetSource = $NugetSource
+        NuspecPath = (Join-Path $configDir 'NameBuilderConfigurator.nuspec')
+        NugetApiKey = $NugetApiKey
+        NugetApiKeyWasExplicit = [bool]$PSBoundParameters.ContainsKey('NugetApiKey')
     }
 
     Write-DryRunPlan @dryRunArgs
@@ -637,14 +671,48 @@ if (-not (Test-Path $packagePath)) {
     throw "NuGet package not created at $packagePath"
 }
 
+function Get-NuspecPackageId {
+    param([string]$NuspecPath)
+
+    try {
+        [xml]$x = Get-Content -Path $NuspecPath
+        $nsUri = $x.DocumentElement.NamespaceURI
+        $ns = New-Object System.Xml.XmlNamespaceManager($x.NameTable)
+        $ns.AddNamespace('n', $nsUri)
+        $id = $x.SelectSingleNode('//n:package/n:metadata/n:id', $ns)
+        if ($id -and -not [string]::IsNullOrWhiteSpace($id.InnerText)) {
+            return $id.InnerText.Trim()
+        }
+    } catch {
+        # fall through
+    }
+
+    return $null
+}
+
 if ($Push -and -not $SkipPush) {
     if ([string]::IsNullOrWhiteSpace($NugetApiKey)) {
         throw "NuGet API key not provided. Supply -NugetApiKey or set NUGET_API_KEY."
     }
 
+    $pkgId = Get-NuspecPackageId -NuspecPath $nuspecPath
+    if ([string]::IsNullOrWhiteSpace($pkgId)) { $pkgId = 'NameBuilderConfigurator' }
+
+    $keyLen = $NugetApiKey.Length
+    $keySource = if ($PSBoundParameters.ContainsKey('NugetApiKey')) { '-NugetApiKey parameter' } else { 'NUGET_API_KEY environment variable' }
+
+    Write-Info "NuGet push details:"
+    Write-Info "  PackageId:  $pkgId"
+    Write-Info "  Version:    $version"
+    Write-Info "  Nupkg:      $packagePath"
+    Write-Info "  Source:     $NugetSource"
+    Write-Info "  ApiKey:     provided via $keySource (length=$keyLen)"
+
     Write-Info "Pushing package to $NugetSource..."
     & $nugetExe push $packagePath -ApiKey $NugetApiKey -Source $NugetSource
     if ($LASTEXITCODE -ne 0) {
+        Write-Warning "nuget.exe push failed with exit code $LASTEXITCODE."
+        Write-Warning "If nuget.org returns 403, the API key is invalid/expired, or it is not permitted to push PackageId='$pkgId' (owner must have permission; scoped keys must include this ID)."
         throw "nuget.exe push failed with exit code $LASTEXITCODE"
     }
 
