@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata minClientVersion="5.10.0">
+    <id>NameBuilderConfigurator</id>
+    <version>$version$</version>
+    <title>NameBuilder</title>
+    <authors>Scott Sewell</authors>
+    <owners>mScottSewell</owners>
+    <license type="expression">MIT</license>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectUrl>https://github.com/mscottsewell/NameBuilder</projectUrl>
+    <summary>Visual designer for the NameBuilder Dataverse plug-in. Connect through XrmToolBox, assemble name patterns, preview the output, and publish JSON back to Create/Update steps without writing code.</summary>
+    <description>XrmToolBox based utility for configuring NameBuilder for Dataverse. See the README for usage instructions.</description>
+    <releaseNotes>Review CHANGELOG or git history for details.</releaseNotes>
+    <tags>XrmToolBox Dataverse NameBuilder Plugin</tags>
+    <iconUrl>https://raw.githubusercontent.com/mscottsewell/NameBuilder/main/NameBuilderConfigurator/Assets/Icon/NameBuilder_32x32.png</iconUrl>
+    <readme>README.md</readme>
+    <dependencies>
+      <dependency id="XrmToolBoxPackage" version="[1.2025.10.74,)" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="bin\Release\NameBuilderConfigurator.dll" target="lib\net472\Plugins\" />
+    <file src="Assets\**\*.*" exclude="Assets\Icon\Backups\**\*.*;Assets\**\*.pdb" target="content\Plugins\NameBuilderConfigurator\Assets\" />
+    <file src="Assets\Icon\NameBuilder_80x80.png" target="icon.png" />
+    <file src="README.md" target="README.md" />
+    <file src="LICENSE" target="LICENSE" />
+  </files>
+</package>
