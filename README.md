@@ -1,10 +1,33 @@
-<img width="1600" alt="image" src="https://github.com/user-attachments/assets/e538d3ac-280d-4a8a-956d-239f8f7e7fdf" />
+<img width="1800"  alt="image" src="https://github.com/user-attachments/assets/ab2b9728-5b66-48e5-9b81-14b9c4edc019" />
 
 ---
 
 **NameBuilder** builds a record's primary name from other fields on the record using a fast, configuable, flexible and easy-to-deploy Dataverse plugin. <br> **The NameBuilder Configurator** give you a simple way to construct, preview and deploy the plugin from within the XrmToolBox - without writing code.
 
 <img width="1258" alt="image" src="https://github.com/user-attachments/assets/ce3dfec3-f4a2-4e7b-9281-8d3df2254ec2" />
+
+## Overview
+
+NameBuilder Configurator is an XrmToolBox plug-in that:
+
+- Reads entity metadata, views, and sample records directly from Dataverse.
+- Visualizes the NameBuilder JSON schema as draggable field blocks with per-block property panes.
+- Offers dialogs for include-if conditions and default-if-blank fallbacks.
+- Publishes JSON payloads back to the NameBuilder Create/Update steps without leaving XrmToolBox.
+  
+## Feature Highlights
+
+- 🔌 **Connection-aware startup** – Reuses your XrmToolBox connection, validates that the NameBuilder assembly exists, and surfaces hash mismatches before publishing.
+- 📋 **Solution-scoped entity browser** – Filter entities by Dataverse solution, load metadata and views, pick sample records, and double-click attributes to insert them.
+- 🎯 **Solution-based deployment** – Select an unmanaged solution to organize NameBuilder plugin assemblies and steps; prevents duplicate step registrations per entity.
+- ✨ **Visual block editor** – Manage ordered field blocks with drag handles (▲/▼), move buttons, deletion, and inline summaries showing configured properties.
+- ⚙️ **Reusable defaults** – Persist global prefix, suffix, number/date formats, and timezone offsets in `%APPDATA%\NameBuilderConfigurator\settings.json`; automatically propagate changes to untouched blocks.
+- 🧮 **Default-if-blank dialog** – Select alternate attributes or literal defaults from one dialog, backed by a read-only behavior summary in the property pane showing the fallback chain.
+- 🧱 **Condition builder** – Compose simple field comparisons or nested `anyOf`/`allOf` trees with support for operators like `equals`, `contains`, `isNull`, etc.
+- 📄 **Import/export/publish** – Round-trip JSON files, copy payloads to the clipboard, retrieve existing configurations from Dataverse steps, or publish directly back to Create/Update steps.
+- 🔍 **Live preview** – See assembled name strings in real-time as you edit, using selected sample record data.
+- 🧰 **Plug-in validation & deployment** – Check NameBuilder assembly presence, verify version hashes, and deploy/update the plug-in from within the tool.
+- 🧰 **Scripted build pipeline** – `build.ps1` restores packages, compiles, deploys to the local XrmToolBox folder, and mirrors outputs into `Ready To Run/`.
 
 ## Why use it?
 
