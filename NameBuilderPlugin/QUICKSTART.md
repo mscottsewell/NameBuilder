@@ -1,17 +1,17 @@
-# Quick Start Guide
+# NameBuilder Plugin – Manual Deployment Quick Start
 
-## Key Features
+This guide is for developers who need to manually register the NameBuilder plugin using the Plugin Registration Tool.
 
-- **Metadata-Driven**: Automatically detects field types and max length from Dataverse metadata
-- **Two Configuration Formats**: Simple pattern-based or advanced fields array
-- **Smart Auto-Detection**: Works with custom fields regardless of naming conventions
+**For most users**: The [XrmToolBox Configurator](../README.md) handles plugin deployment automatically—use that instead.
+
+**For developers extending the plugin**: See [README.md](README.md) for architecture and development details.
 
 ## Prerequisites
 
 - Visual Studio 2019 or later
 - .NET Framework 4.6.2 or later
-- Plugin Registration Tool
-- Access to a Dataverse environment with sufficient privileges
+- Plugin Registration Tool ([download here](https://aka.ms/pluginregistrationtool))
+- Access to a Dataverse environment with System Administrator or System Customizer role
 
 ## Build and Deploy in 5 Steps
 
@@ -57,6 +57,7 @@ The compiled DLL will be at: `NameBuilderPlugin\bin\Release\net462\NameBuilder.d
 **Result:** `2025-12-01 | John Smith`
 
 **Notes:**
+
 - `maxLength` is auto-detected from the `name` field metadata
 - Field types (`date`, `lookup`) are auto-detected from metadata
 - You can override by explicitly setting `maxLength` or using `:type` syntax
@@ -174,7 +175,16 @@ Set `enableTracing` back to `false` (or remove it) for normal operation.
 
 ## Next Steps
 
-- Review [Docs/EXAMPLES.md](Docs/EXAMPLES.md) for more configuration examples
-- Read [README.md](README.md) for detailed documentation
-- Customize date formats to match your regional preferences
-- Add prefix/suffix for better formatting
+**For configuration examples and patterns:**
+
+- [Docs/EXAMPLES.md](Docs/EXAMPLES.md) – Fields array configuration examples
+- [Docs/PATTERN_EXAMPLES.md](Docs/PATTERN_EXAMPLES.md) – Pattern-based configuration examples
+- [Docs/CONDITIONAL_FIELDS.md](Docs/CONDITIONAL_FIELDS.md) – Conditional logic and operators
+- [Docs/NUMERIC_CURRENCY_DOCS.md](Docs/NUMERIC_CURRENCY_DOCS.md) – Number and currency formatting
+- [Docs/SCHEMA.md](Docs/SCHEMA.md) – Complete JSON schema reference
+
+**For understanding and managing the plugin:**
+
+- [README.md](README.md) – Plugin architecture and developer documentation
+- [../ADMINISTRATOR.md](../ADMINISTRATOR.md) – Reviewing, troubleshooting, and uninstalling
+- [../README.md](../README.md) – Getting started guide for end users

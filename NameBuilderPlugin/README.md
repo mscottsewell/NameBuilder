@@ -1,8 +1,14 @@
-# Dataverse Name Builder Plugin
+# NameBuilder Plugin – Developer Documentation
 
-A configurable Dataverse plugin that dynamically constructs the primary name field of a dataverse record based on values from other fields on that record. It uses an intuitive pattern-based configuration syntax in JSON format.
-Although not a requirement, a recommended companion is the NameBuilder Configurator (an XrmToolBox utility) that simplifies creating and managing the JSON used by this plug-in.
-In this monorepo, the configurator lives in [../NameBuilderConfigurator](../NameBuilderConfigurator). It can also be installed from the XrmToolBox Tool Library (search for "NameBuilder Configurator").
+A configurable Dataverse plugin that dynamically constructs the primary name field based on other field values. This document is for **developers** who want to understand the plugin architecture, build from source, or extend the code.
+
+**For end users**: See the main [README.md](../README.md) for installation and usage via XrmToolBox.
+
+**For administrators**: See [ADMINISTRATOR.md](../ADMINISTRATOR.md) for reviewing, troubleshooting, and managing plugin components.
+
+## Overview
+
+This plugin executes during Create/Update operations in the PreOperation stage, assembling the target field (typically `name`) from a JSON-configured pattern. The companion [NameBuilderConfigurator](../NameBuilderConfigurator) provides a visual designer for building these configurations, but manual JSON editing is fully supported.
 
 ## Features
 
@@ -27,9 +33,48 @@ In this monorepo, the configurator lives in [../NameBuilderConfigurator](../Name
 - ✅ **Conditional Field Inclusion**: Show/hide fields based on other field values (e.g., show estimated value if open, actual value if closed)
 - ✅ **JSON Schema**: IntelliSense and validation support for configuration files
 
-## Quick Start
+## Architecture
 
-### Basic Configuration
+### Plugin Execution Flow
+
+```text
+1. Dataverse triggers Create/Update message
+2. Plugin executes in PreOperation stage (synchronous)
+3. Parse JSON configuration from step's unsecure configuration
+4. Retrieve field values from Target (Create) or Target + PreImage (Update)
+5. Process each field block:
+   - Evaluate includeIf conditions
+   - Resolve field values (lookups, optionsets, etc.)
+   - Apply formatting (dates, numbers, currency)
+   - Apply fallbacks (alternateField, default values)
+   - Handle truncation
+6. Assemble final string with prefixes/suffixes
+7. Set target field value
+8. Dataverse completes the save operation
+```
+
+### Key Components
+
+| Component | Purpose |
+| --------- | ------- |
+| **NameBuilderPlugin.cs** | Main plugin class, implements `IPlugin` |
+| **Configuration Parser** | Deserializes JSON into strongly-typed configuration objects |
+| **Metadata Cache** | Caches entity/attribute metadata for performance |
+| **Field Resolvers** | Type-specific logic for lookups, optionsets, dates, etc. |
+| **Condition Evaluator** | Processes `includeIf` logic (anyOf/allOf) |
+| **Formatter** | Handles date/number/currency formatting and K/M/B scaling |
+
+### Performance Optimizations
+
+- **Metadata Caching**: Uses `ConcurrentDictionary` to cache metadata queries
+- **OptionSet Label Caching**: Caches picklist labels to avoid repeated metadata calls
+- **Currency Symbol Caching**: Caches currency symbols by transaction currency ID
+- **Configuration Caching**: Parses JSON configuration once per pattern
+- **Smart Filtering**: Update steps only fire when configured fields change
+
+## Quick Configuration Reference
+
+### Basic Pattern-Based Configuration
 
 ```json
 {
@@ -440,9 +485,33 @@ The plugin leverages Dataverse metadata APIs for improved accuracy and reliabili
 - **Currency Symbol Caching**: Caches currency symbols by transaction currency ID
 - **Configuration Caching**: Parses JSON configuration once per pattern
 
-## Installation & Registration
+## Building from Source
 
-### Step 1: Build the Plugin
+### Prerequisites
+
+- Visual Studio 2019 or later
+- .NET Framework 4.6.2 or later
+- NuGet package manager
+
+### Build Steps
+
+#### Option 1: Using build script (recommended)
+
+From the repo root:
+
+```powershell
+pwsh -File .\build.ps1 -Configuration Release -PluginOnly
+```
+
+Or from the plugin folder:
+
+```powershell
+pwsh -File .\NameBuilderPlugin\build.ps1 -Configuration Release
+```
+
+The compiled DLL will be at: `NameBuilderPlugin\bin\Release\net462\NameBuilder.dll`
+
+#### Option 2: Using Visual Studio
 
 1. Open the solution in Visual Studio 2019 or later
 2. Restore NuGet packages
@@ -453,10 +522,10 @@ The plugin leverages Dataverse metadata APIs for improved accuracy and reliabili
 
 ```powershell
 # Create a strong name key
-sn -k DataverseNamePlugin.snk
+sn -k NameBuilder.snk
 
 # Add to your .csproj:
-# <AssemblyOriginatorKeyFile>DataverseNamePlugin.snk</AssemblyOriginatorKeyFile>
+# <AssemblyOriginatorKeyFile>NameBuilder.snk</AssemblyOriginatorKeyFile>
 # <SignAssembly>true</SignAssembly>
 ```
 
@@ -593,7 +662,56 @@ If you want the name to update when fields change:
 - Examples: `estimatedvalue`, `totalamount`, `budgetamount`
 - **Multi-Currency Support**: Displays correct symbol based on record's transaction currency
 
-## Troubleshooting
+## Manual Plugin Deployment
+
+For most users, the XrmToolBox Configurator handles plugin deployment automatically. For developers who need manual control, see [QUICKSTART.md](QUICKSTART.md) for step-by-step instructions on:
+
+- Registering the assembly with the Plugin Registration Tool
+- Creating Create/Update steps manually
+- Configuring filtering attributes and PreImages
+- Setting up the JSON configuration
+
+## Extending the Plugin
+
+### Adding Custom Field Types
+
+To add support for new field types:
+
+1. Update the `FieldType` enum
+2. Add a resolver method in the field processing logic
+3. Update the JSON schema in `Docs/plugin-config.schema.json`
+4. Add examples to the documentation
+
+### Adding Custom Operators
+
+To add new `includeIf` operators:
+
+1. Add the operator to the supported operators list
+2. Implement the comparison logic in the condition evaluator
+3. Update `Docs/CONDITIONAL_FIELDS.md` with examples
+
+### Testing Changes
+
+When modifying the plugin:
+
+1. Build in Debug mode for local testing
+2. Deploy to a development environment
+3. Enable tracing in the configuration (`"enableTracing": true`)
+4. Review Plugin Trace Logs for diagnostics
+5. Test with Create and Update operations
+6. Verify filtering attributes work correctly for Update steps
+
+## Developer Resources
+
+- **Configuration Examples**: [Docs/EXAMPLES.md](Docs/EXAMPLES.md)
+- **Pattern Syntax**: [Docs/PATTERN_EXAMPLES.md](Docs/PATTERN_EXAMPLES.md)
+- **Conditional Logic**: [Docs/CONDITIONAL_FIELDS.md](Docs/CONDITIONAL_FIELDS.md)
+- **Numeric/Currency Formatting**: [Docs/NUMERIC_CURRENCY_DOCS.md](Docs/NUMERIC_CURRENCY_DOCS.md)
+- **JSON Schema**: [Docs/SCHEMA.md](Docs/SCHEMA.md)
+- **Manual Deployment**: [QUICKSTART.md](QUICKSTART.md)
+- **Build Scripts**: [../Docs/BUILDING.md](../Docs/BUILDING.md)
+
+## Troubleshooting for Developers
 
 ### Name field is not being populated
 
@@ -644,14 +762,30 @@ If you want the name to update when fields change:
 - Power Apps (Dataverse)
 - Built with .NET Framework 4.6.2
 
+## Contributing
+
+Contributions are welcome! When contributing:
+
+1. **Code Style**: Follow existing patterns and conventions
+2. **Testing**: Test changes in a development environment before submitting
+3. **Documentation**: Update relevant docs in `Docs/` folder
+4. **Schema**: Update `plugin-config.schema.json` for configuration changes
+5. **Examples**: Add examples for new features
+
 ## License
 
-This plugin is provided as-is for use in Dataverse environments.
+See [../LICENSE](../LICENSE).
 
 ## Support
 
-For issues or questions:
+**For users**: See the main [README.md](../README.md) for common questions and getting started.
+
+**For administrators**: See [ADMINISTRATOR.md](../ADMINISTRATOR.md) for troubleshooting plugin execution.
+
+**For developers**:
 
 1. Check the Plugin Trace Log in your Dataverse environment
-2. Review configuration JSON syntax
-3. Verify field names and types match your entity schema
+2. Enable tracing in configuration (`"enableTracing": true`)
+3. Review configuration JSON syntax against the schema
+4. Verify field names and types match your entity schema
+5. Review this documentation and examples in `Docs/`

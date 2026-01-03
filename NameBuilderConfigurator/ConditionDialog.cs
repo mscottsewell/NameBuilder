@@ -150,7 +150,7 @@ namespace  NameBuilderConfigurator
             };
             operatorComboBox.Items.AddRange(Operators.Cast<object>().ToArray());
             operatorComboBox.SelectedIndexChanged += OperatorComboBox_SelectedIndexChanged;
-            helpToolTip.SetToolTip(operatorComboBox, "Comparison operator: equals, contains, startsWith, isNull (empty), isEmpty, greaterThan, etc.");
+            helpToolTip.SetToolTip(operatorComboBox, "Comparison operator: equals, notEquals, contains, notContains, in, notIn, greaterThan, lessThan, greaterThanOrEqual, lessThanOrEqual, isEmpty, isNotEmpty");
             simplePanel.Controls.Add(operatorLabel);
             simplePanel.Controls.Add(operatorComboBox);
             py += 35;

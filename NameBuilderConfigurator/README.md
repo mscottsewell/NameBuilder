@@ -29,10 +29,13 @@ NameBuilder Configurator is a WinForms-based XrmToolBox plug-in that:
 - Offers dialogs for include-if conditions and default-if-blank fallbacks.
 - Publishes JSON payloads back to the NameBuilder Create/Update steps without leaving XrmToolBox.
 
-## Documentation Map
+## Documentation
 
-- **Full walkthrough & screenshots** – [Docs/USAGE.md](Docs/USAGE.md)
-- **Schema & plug-in internals** – [../NameBuilderPlugin/Docs](../NameBuilderPlugin/Docs)
+- **Getting started guide** – [../README.md](../README.md) – User-friendly introduction and quick start
+- **Full UI reference** – [Docs/USAGE.md](Docs/USAGE.md) – Complete XrmToolBox configurator guide
+- **Plugin configuration** – [../NameBuilderPlugin/Docs](../NameBuilderPlugin/Docs) – JSON schema, examples, and patterns
+- **Administrator guide** – [../ADMINISTRATOR.md](../ADMINISTRATOR.md) – Managing and troubleshooting components
+- **Developer docs** – [../NameBuilderPlugin/README.md](../NameBuilderPlugin/README.md) – Plugin architecture
 
 ## Feature Highlights
 

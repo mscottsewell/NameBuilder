@@ -61,6 +61,8 @@ The `includeIf` object has three properties:
 
 ## Supported Operators
 
+The following operators are currently implemented in the NameBuilder plugin. The operators listed here are the **complete and accurate set** of supported operators as of the current version.
+
 ### Equality Operators
 
 | Operator | Aliases | Description | Example |
@@ -97,6 +99,8 @@ The `includeIf` object has three properties:
 |----------|-------------|---------|
 | `isEmpty` | Field has no value (null or empty string) | `"primarycontactid"` isEmpty |
 | `isNotEmpty` | Field has a value | `"customerid"` isNotEmpty |
+
+**Note**: Operators like `startsWith`, `endsWith`, and `isNull` are **not currently implemented**. If you specify an unrecognized operator, the condition will default to `true` (always include the field), which may produce unexpected results. Always use one of the operators listed above.
 
 ## Type-Aware Comparison
 

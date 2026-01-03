@@ -594,6 +594,94 @@ If `customerid` is empty/missing, returns: `Unknown Customer Normal`
 **Example output:**
 `20251201 Adventure Works Cycles Corporation... | Surface Pro 9 | Request`
 
+## 13. Boolean Field Type
+
+Boolean fields are supported and convert `true`/`false` values to lowercase string representations.
+
+### Basic Boolean Field
+
+```json
+{
+  "targetField": "name",
+  "pattern": "accountnumber | new_isactive:boolean"
+}
+```
+
+Result: `ACC001 | true` or `ACC001 | false`
+
+### Boolean in Fields Array with Custom Prefix
+
+```json
+{
+  "targetField": "name",
+  "fields": [
+    {
+      "field": "ticketnumber"
+    },
+    {
+      "field": "new_isurgent",
+      "type": "boolean",
+      "prefix": " [URGENT: ",
+      "suffix": "]"
+    }
+  ]
+}
+```
+
+Result: `TKT-1001 [URGENT: true]`
+
+### Boolean with Conditional Logic
+
+Boolean fields work well with conditional `includeIf` logic to show/hide other fields:
+
+```json
+{
+  "targetField": "name",
+  "fields": [
+    {
+      "field": "ticketnumber"
+    },
+    {
+      "field": "new_escalationflag",
+      "type": "boolean",
+      "includeIf": {
+        "allOf": [
+          {
+            "field": "new_escalationflag",
+            "operator": "equals",
+            "value": "true"
+          }
+        ]
+      },
+      "prefix": " [ESCALATED]"
+    }
+  ]
+}
+```
+
+Result: `TKT-1001 [ESCALATED]` (only when `new_escalationflag` is `true`)
+
+### Boolean Default Values
+
+```json
+{
+  "targetField": "name",
+  "fields": [
+    {
+      "field": "name"
+    },
+    {
+      "field": "new_isverified",
+      "type": "boolean",
+      "default": "false",
+      "prefix": " | Verified: "
+    }
+  ]
+}
+```
+
+Result: `Contoso Ltd | Verified: false` (uses default if field is null)
+
 ### Fields Array Properties
 
 | Property | Type | Required | Description |
