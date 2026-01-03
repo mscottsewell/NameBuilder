@@ -5,10 +5,6 @@
 .nuget/
 .tmp/
 
-# Local repo backups (should never be committed)
-.git-backups/
-.github/workflows-disabled/
-
 # Generated plugin payload copied into configurator assets
 NameBuilderConfigurator/Assets/DataversePlugin/*.dll
 NameBuilderConfigurator/Assets/DataversePlugin/*.pdb

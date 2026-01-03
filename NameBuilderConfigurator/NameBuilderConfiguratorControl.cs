@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.ServiceModel;
@@ -21,14 +20,6 @@ using McTools.Xrm.Connection;
 
 namespace NameBuilderConfigurator
 {
-    /// <summary>
-    /// Main UI control for the NameBuilder Configurator.
-    /// </summary>
-    /// <remarks>
-    /// This control runs inside XrmToolBox and helps users build and publish the JSON configuration used by the
-    /// NameBuilder Dataverse plug-in. It loads solution/entity metadata, lets the user visually compose field blocks,
-    /// shows a live preview based on a sample record, and can publish the resulting JSON back to plug-in steps.
-    /// </remarks>
     public partial class NameBuilderConfiguratorControl : PluginControlBase
     {
         private ComboBox solutionDropdown;
@@ -43,6 +34,7 @@ namespace NameBuilderConfigurator
         private ToolStripButton exportJsonToolButton;
         private ToolStripButton importJsonToolButton;
         private ToolStripButton retrieveConfigToolButton;
+        private ToolStripButton registerPluginToolButton;
         private ToolStripButton publishToolButton;
         private System.Windows.Forms.Label statusLabel;
         private NumericUpDown maxLengthNumeric;
@@ -176,13 +168,6 @@ namespace NameBuilderConfigurator
             InitializeComponent();
         }
 
-        /// <summary>
-        /// Called by XrmToolBox when the active Dataverse connection changes.
-        /// </summary>
-        /// <remarks>
-        /// When switching environments we reset connection-scoped caches and selections.
-        /// When connecting, we validate permissions, verify plug-in registration, and load solutions/entities.
-        /// </remarks>
         public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail, string actionName, object parameter)
         {
             base.UpdateConnection(newService, detail, actionName, parameter);
@@ -198,6 +183,8 @@ namespace NameBuilderConfigurator
                 lastPluginCheckResult = null;
                 ResetConnectionScopedSelections();
             }
+
+            UpdatePluginInstallButtonState();
 
             if (newService != null)
             {
@@ -244,13 +231,6 @@ namespace NameBuilderConfigurator
             return new Font(fontName, fontSize, style);
         }
 
-        /// <summary>
-        /// Performs a lightweight Dataverse read to confirm the current user can access plug-in registration tables.
-        /// </summary>
-        /// <remarks>
-        /// The configurator needs permissions to read/write entities like pluginassembly/plugintype/steps.
-        /// If this check fails, we disable the UI and display a clear message.
-        /// </remarks>
         private void CheckUserPermissions()
         {
             if (Service == null)
@@ -297,6 +277,7 @@ namespace NameBuilderConfigurator
                     exportJsonToolButton.Enabled = false;
                     importJsonToolButton.Enabled = false;
                     retrieveConfigToolButton.Enabled = false;
+                    registerPluginToolButton.Enabled = false;
                     publishToolButton.Enabled = false;
                     targetFieldTextBox.Enabled = false;
                     enableTracingCheckBox.Enabled = false;
@@ -357,10 +338,6 @@ namespace NameBuilderConfigurator
             sampleRecordCache.Clear();
         }
 
-        /// <summary>
-        /// Ensures the solution list is loaded into the dropdown.
-        /// </summary>
-        /// <param name="ensureEntities">When true, entity metadata is loaded once solutions are available.</param>
         private void EnsureSolutionsLoaded(bool ensureEntities = false)
         {
             if (Service == null || solutionDropdown == null)
@@ -394,13 +371,6 @@ namespace NameBuilderConfigurator
             }
         }
 
-        /// <summary>
-        /// Loads unmanaged solutions from Dataverse for filtering entities and storing plug-in components.
-        /// </summary>
-        /// <remarks>
-        /// We only list unmanaged solutions because managed solutions are not editable and are not appropriate targets
-        /// for adding custom plug-in components.
-        /// </remarks>
         private void LoadSolutions()
         {
             if (Service == null)
@@ -596,10 +566,6 @@ namespace NameBuilderConfigurator
                 item.UniqueName.Equals(DefaultSolutionUniqueName, StringComparison.OrdinalIgnoreCase);
         }
 
-        /// <summary>
-        /// Loads entity membership for a specific solution (used to filter the entity dropdown).
-        /// </summary>
-        /// <param name="solution">The selected solution.</param>
         private void LoadSolutionEntities(SolutionItem solution)
         {
             if (Service == null || solution == null)
@@ -682,13 +648,6 @@ namespace NameBuilderConfigurator
             });
         }
 
-        /// <summary>
-        /// Applies the currently selected solution filter to the entity dropdown.
-        /// </summary>
-        /// <remarks>
-        /// When the selected solution is the default solution, the full entity list is shown.
-        /// Otherwise, we show only entities whose metadata IDs are present in the solution component cache.
-        /// </remarks>
         private void ApplySolutionFilterIfReady()
         {
             if (entityDropdown == null)
@@ -1029,14 +988,14 @@ namespace NameBuilderConfigurator
                 Dock = DockStyle.Fill,
                 GripStyle = ToolStripGripStyle.Hidden,
                 Padding = new Padding(5, 0, 5, 0),
-                ImageScalingSize = new Size(20, 20)
+                ImageScalingSize = new Size(18, 18)
             };
             
             var loadEntitiesToolButton = new ToolStripButton
             {
                 Text = "Load Metadata",
                 DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                Image = LoadToolbarIcon("LoadEntities.png", SystemIcons.Application),
+                Image = LoadToolbarIcon("LoadEntities.png", SystemIcons.Application)
             };
             loadEntitiesToolButton.Click += LoadEntitiesButton_Click;
             loadEntitiesToolButton.ToolTipText = "Reload entity metadata and refresh the Available Attributes list.";
@@ -1046,11 +1005,22 @@ namespace NameBuilderConfigurator
             {
                 Text = "Retrieve Configured Entity",
                 DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                Image = LoadToolbarIcon("RetrieveConfiguration.png", SystemIcons.Information),
+                Image = LoadToolbarIcon("RetrieveConfiguration.png", SystemIcons.Information)
             };
             retrieveConfigToolButton.Click += RetrieveConfigurationToolButton_Click;
             retrieveConfigToolButton.ToolTipText = "Pull an existing NameBuilder plug-in step configuration from Dataverse.";
             ribbon.Items.Add(retrieveConfigToolButton);
+
+            registerPluginToolButton = new ToolStripButton
+            {
+                Text = "Register Plug-in",
+                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
+                Enabled = false,
+                Image = LoadToolbarIcon("NameBuilder_Monoline_32x32.png", SystemIcons.Shield)
+            };
+            registerPluginToolButton.Click += RegisterPluginToolButton_Click;
+            registerPluginToolButton.ToolTipText = "Verify or deploy the NameBuilder plug-in assembly into the connected environment.";
+            ribbon.Items.Add(registerPluginToolButton);
 
             ribbon.Items.Add(new ToolStripSeparator());
             
@@ -1058,7 +1028,7 @@ namespace NameBuilderConfigurator
             {
                 Text = "Import file",
                 DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                Image = LoadToolbarIcon("ImportJSON.png", SystemIcons.Shield),
+                Image = LoadToolbarIcon("ImportJSON.png", SystemIcons.Shield)
             };
             importJsonToolButton.Click += ImportJsonToolButton_Click;
             importJsonToolButton.ToolTipText = "Load a NameBuilder JSON file from disk and rebuild the designer.";
@@ -1069,7 +1039,7 @@ namespace NameBuilderConfigurator
                 Text = "Export file",
                 DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
                 Enabled = false,
-                Image = LoadToolbarIcon("ExportJSON.png", SystemIcons.Asterisk),
+                Image = LoadToolbarIcon("ExportJSON.png", SystemIcons.Asterisk)
             };
             exportJsonToolButton.Click += ExportJsonButton_Click;
             exportJsonToolButton.ToolTipText = "Save the current NameBuilder payload to a JSON file.";
@@ -1080,7 +1050,7 @@ namespace NameBuilderConfigurator
                 Text = "Copy to clipboard",
                 DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
                 Enabled = false,
-                Image = LoadToolbarIcon("CopyJSON.png", SystemIcons.Question),
+                Image = LoadToolbarIcon("CopyJSON.png", SystemIcons.Question)
             };
             copyJsonToolButton.Click += CopyJsonButton_Click;
             copyJsonToolButton.ToolTipText = "Copy the generated JSON to the clipboard.";
@@ -1093,7 +1063,7 @@ namespace NameBuilderConfigurator
                 Text = "Publish Configuration",
                 DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
                 Enabled = false,
-                Image = LoadToolbarIcon("PublishConfiguration.png", SystemIcons.Warning),
+                Image = LoadToolbarIcon("PublishConfiguration.png", SystemIcons.Warning)
             };
             publishToolButton.Click += PublishToolButton_Click;
             publishToolButton.ToolTipText = "Push the JSON back to the selected NameBuilder steps (Create/Update).";
@@ -1131,7 +1101,7 @@ namespace NameBuilderConfigurator
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Horizontal,
-                SplitterDistance = Math.Max(52, Math.Min(initialSettings.PreviewHeight, 64))
+                SplitterDistance = Math.Max(30, Math.Min(initialSettings.PreviewHeight, 100))
             };
 
             // Bottom of right side: split between middle and right panels
@@ -1413,27 +1383,29 @@ namespace NameBuilderConfigurator
             middleRightSplitter.Panel2.Controls.Add(rightPanel);
 
             // Preview spanning middle+right, but only at the top of the right side
-            var previewPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8, 4, 8, 4) };
-            var previewLabel = new System.Windows.Forms.Label
-            {
+            var previewPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8) };
+            var previewLabel = new System.Windows.Forms.Label {
                 Text = "Live Preview:",
+                Location = new Point(5, 5),
                 AutoSize = true,
-                Dock = DockStyle.Top,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
+            previewPanel.Controls.Add(previewLabel);
             previewTextBox = new TextBox
             {
-                Dock = DockStyle.Fill,
-                MinimumSize = new Size(0, 28),
+                Location = new Point(5, 30),
+                Width = previewPanel.ClientSize.Width - 16,
+                Height = 28,
                 Multiline = true,
                 ReadOnly = true,
                 BackColor = Color.LightYellow,
                 Font = new Font("Segoe UI", 11F, FontStyle.Regular),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 WordWrap = true
             };
+            previewPanel.Resize += (s, e) => previewTextBox.Width = previewPanel.ClientSize.Width - 16;
             helpToolTip.SetToolTip(previewTextBox, "Live example of the assembled name for the selected sample record.");
             previewPanel.Controls.Add(previewTextBox);
-            previewPanel.Controls.Add(previewLabel);
 
             rightTopBottomSplitter.Panel1.Controls.Add(previewPanel);
             rightTopBottomSplitter.Panel2.Controls.Add(middleRightSplitter);
@@ -1475,7 +1447,7 @@ namespace NameBuilderConfigurator
             {
                 if (isRestoringLayout || !allowPersistence) return;
                 var st = PluginUserSettings.Load();
-                st.PreviewHeight = Math.Max(52, Math.Min(rightTopBottomSplitter.SplitterDistance, 64));
+                st.PreviewHeight = Math.Max(20, Math.Min(rightTopBottomSplitter.SplitterDistance, 100));
                 st.Save();
             };
 
@@ -1511,7 +1483,7 @@ namespace NameBuilderConfigurator
                     middleRightSplitter.SplitterDistance = Math.Max(200, middleWidth);
                     
                     // Preview height (persisted)
-                    rightTopBottomSplitter.SplitterDistance = Math.Max(52, Math.Min(settings.PreviewHeight, 64));
+                    rightTopBottomSplitter.SplitterDistance = Math.Max(20, Math.Min(settings.PreviewHeight, 100));
                 }
                 finally
                 {
@@ -1536,16 +1508,11 @@ namespace NameBuilderConfigurator
             };
             
             this.Resize += applySavedLayout;
+
+            UpdatePluginInstallButtonState();
             this.ResumeLayout();
         }
 
-        /// <summary>
-        /// Verifies that the NameBuilder plug-in assembly and types exist in the connected Dataverse environment.
-        /// </summary>
-        /// <remarks>
-        /// Publishing configuration requires a known plug-in type and (usually) standard Create/Update steps.
-        /// If the plug-in is missing, the UI will prompt the user to install or update it.
-        /// </remarks>
         private void EnsureNameBuilderPluginPresence()
         {
             if (Service == null || pluginPresenceCheckRunning || pluginPresenceVerified)
@@ -1554,7 +1521,7 @@ namespace NameBuilderConfigurator
             }
 
             pluginPresenceCheckRunning = true;
-            SetActiveRegistryStep(activeRegistryStep);
+            UpdatePluginInstallButtonState();
 
             WorkAsync(new WorkAsyncInfo
             {
@@ -1566,7 +1533,7 @@ namespace NameBuilderConfigurator
                 PostWorkCallBack = (args) =>
                 {
                     pluginPresenceCheckRunning = false;
-                    SetActiveRegistryStep(activeRegistryStep);
+                    UpdatePluginInstallButtonState();
 
                     if (args.Error != null)
                     {
@@ -1606,6 +1573,8 @@ namespace NameBuilderConfigurator
                                 continuation?.Invoke();
                             }
                         }
+
+                        UpdatePluginInstallButtonState();
                         SetActiveRegistryStep(activeRegistryStep);
                         TryAutoLoadPublishedConfiguration();
                     }
@@ -1613,12 +1582,6 @@ namespace NameBuilderConfigurator
             });
         }
 
-        /// <summary>
-        /// Queries Dataverse for the NameBuilder plug-in assembly and its registered plug-in types.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="PluginPresenceCheckResult"/> describing whether NameBuilder is installed and what was found.
-        /// </returns>
         private PluginPresenceCheckResult PerformNameBuilderPluginPresenceCheck()
         {
             var assemblyQuery = new QueryExpression("pluginassembly")
@@ -1639,7 +1602,7 @@ namespace NameBuilderConfigurator
                 return new PluginPresenceCheckResult
                 {
                     IsInstalled = false,
-                    Message = "The NameBuilder plug-in assembly is missing in this Dataverse environment. Use Publish Configuration and choose 'Update plug-in first' when prompted to install it.",
+                    Message = "The NameBuilder plug-in assembly is missing in this Dataverse environment. Use Register NameBuilder Plug-in to install it before continuing.",
                     AssemblyName = "NameBuilder"
                 };
             }
@@ -1669,7 +1632,7 @@ namespace NameBuilderConfigurator
                 return new PluginPresenceCheckResult
                 {
                     IsInstalled = false,
-                    Message = "No plug-in types were found under the NameBuilder assembly. Use Publish Configuration and choose 'Update plug-in first' when prompted to reinstall the plug-in.",
+                    Message = "No plug-in types were found under the NameBuilder assembly. Use Register NameBuilder Plug-in to reinstall the plug-in.",
                     PluginAssemblyId = assembly.Id,
                     InstalledVersion = assembly.GetAttributeValue<string>("version"),
                     AssemblyName = assembly.GetAttributeValue<string>("name") ?? "NameBuilder",
@@ -1691,21 +1654,44 @@ namespace NameBuilderConfigurator
             };
         }
 
-        /// <summary>
-        /// Registers or updates the NameBuilder plug-in assembly in Dataverse.
-        /// </summary>
-        /// <param name="assemblyPath">Local path to NameBuilder.dll.</param>
-        /// <param name="solutionId">Optional solution to add the plug-in assembly to after registration.</param>
-        /// <param name="postInstallContinuation">Optional action to run after install completes and presence is re-verified.</param>
-        private void StartPluginInstallation(string assemblyPath, Guid? solutionId, Action postInstallContinuation = null)
+        private void RegisterPluginToolButton_Click(object sender, EventArgs e)
         {
-            if (pluginInstallRunning)
+            if (Service == null)
             {
-                MessageBox.Show(this, "A plug-in installation is already running.",
-                    "Installation In Progress", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Please connect to a Dataverse environment before installing the plug-in.",
+                    "Not Connected", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
+            var defaultPath = ResolveLocalPluginAssemblyPath();
+            var statusInfo = BuildPluginRegistrationStatusInfo();
+
+            using (var dialog = new PluginRegistrationDialog(defaultPath, statusInfo))
+            {
+                if (dialog.ShowDialog(this) == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedAssemblyPath))
+                {
+                    var preference = GetConnectionPreference();
+                    var solutionId = preference?.PluginSolutionId;
+
+                    using (var solutionDialog = new PluginSolutionSelectionDialog(solutions, solutionId))
+                    {
+                        if (solutionDialog.ShowDialog(this) == DialogResult.OK)
+                        {
+                            PersistConnectionPreference(pref =>
+                            {
+                                pref.PluginSolutionId = solutionDialog.SelectedSolutionId;
+                                pref.PluginSolutionUniqueName = solutionDialog.SelectedSolutionUniqueName;
+                            });
+
+                            StartPluginInstallation(dialog.SelectedAssemblyPath, solutionDialog.SelectedSolutionId);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void StartPluginInstallation(string assemblyPath, Guid? solutionId, Action postInstallContinuation = null)
+        {
             if (string.IsNullOrWhiteSpace(assemblyPath) || !File.Exists(assemblyPath))
             {
                 MessageBox.Show(this, "Select a valid NameBuilder.dll file before continuing.",
@@ -1714,7 +1700,7 @@ namespace NameBuilderConfigurator
             }
 
             pluginInstallRunning = true;
-            SetActiveRegistryStep(activeRegistryStep);
+            UpdatePluginInstallButtonState();
 
             WorkAsync(new WorkAsyncInfo
             {
@@ -1736,7 +1722,7 @@ namespace NameBuilderConfigurator
                 PostWorkCallBack = (args) =>
                 {
                     pluginInstallRunning = false;
-                    SetActiveRegistryStep(activeRegistryStep);
+                    UpdatePluginInstallButtonState();
 
                     if (args.Error != null)
                     {
@@ -1762,15 +1748,54 @@ namespace NameBuilderConfigurator
             });
         }
 
-        /// <summary>
-        /// Attempts to locate the packaged NameBuilder.dll that ships with the configurator.
-        /// </summary>
-        /// <remarks>
-        /// The expected path is Assets\DataversePlugin\NameBuilder.dll. This method searches likely folders relative
-        /// to the running XrmToolBox plug-in.
-        /// </remarks>
-        /// <param name="refresh">When true, forces a rescan even if a cached path exists.</param>
-        /// <returns>The assembly path if found; otherwise null.</returns>
+        private PluginRegistrationStatusInfo BuildPluginRegistrationStatusInfo()
+        {
+            var status = new PluginRegistrationStatusInfo
+            {
+                IsInstalled = lastPluginCheckResult?.IsInstalled ?? false,
+                InstalledVersion = lastPluginCheckResult?.InstalledVersion,
+                StatusMessage = lastPluginCheckResult?.Message,
+                InstalledHash = lastPluginCheckResult?.InstalledHash
+            };
+
+            if (lastPluginCheckResult?.RegisteredPluginTypes != null && lastPluginCheckResult.RegisteredPluginTypes.Count > 0)
+            {
+                status.RegisteredTypes = lastPluginCheckResult.RegisteredPluginTypes
+                    .Select(t => t?.Name ?? t?.TypeName)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
+            return status;
+        }
+
+        private void UpdatePluginInstallButtonState()
+        {
+            if (registerPluginToolButton == null)
+            {
+                return;
+            }
+
+            var hasConnection = Service != null;
+            registerPluginToolButton.Enabled = hasConnection && !pluginPresenceCheckRunning && !pluginInstallRunning;
+            registerPluginToolButton.Text = pluginPresenceVerified
+                ? "Update NameBuilder Plug-in"
+                : "Register NameBuilder Plug-in";
+
+            if (lastPluginCheckResult != null && lastPluginCheckResult.IsInstalled &&
+                !string.IsNullOrWhiteSpace(lastPluginCheckResult.InstalledHash))
+            {
+                registerPluginToolButton.ToolTipText =
+                    $"Current NameBuilder hash: {FormatHashPreview(lastPluginCheckResult.InstalledHash)}. Click to update or repair.";
+            }
+            else
+            {
+                registerPluginToolButton.ToolTipText =
+                    "Deploy or update the NameBuilder plug-in assembly in the connected Dataverse environment.";
+            }
+        }
+
         private string ResolveLocalPluginAssemblyPath(bool refresh = false)
         {
             if (!refresh && !string.IsNullOrWhiteSpace(cachedPluginAssemblyPath) && File.Exists(cachedPluginAssemblyPath))
@@ -1835,9 +1860,6 @@ namespace NameBuilderConfigurator
             return null;
         }
 
-        /// <summary>
-        /// Adds the plug-in assembly as a component of a Dataverse solution (if it is not already included).
-        /// </summary>
         private void AddPluginComponentsToSolution(Guid assemblyId, Guid solutionId)
         {
             if (assemblyId == Guid.Empty || solutionId == Guid.Empty)
@@ -1879,9 +1901,6 @@ namespace NameBuilderConfigurator
             Service.Execute(addRequest);
         }
 
-        /// <summary>
-        /// Adds a SDK message processing step to a solution (if it is not already included).
-        /// </summary>
         private void AddStepToSolution(Guid stepId, Guid? solutionId)
         {
             if (stepId == Guid.Empty || !solutionId.HasValue || solutionId.Value == Guid.Empty)
@@ -1973,46 +1992,11 @@ namespace NameBuilderConfigurator
 
         private void PublishToolButton_Click(object sender, EventArgs e)
         {
-            BeginPublishFlow();
-        }
-
-        private void BeginPublishFlow(bool skipPrecheck = false)
-        {
             if (Service == null)
             {
                 MessageBox.Show("Please connect to a Dataverse environment first.", "Not Connected",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
-            }
-
-            if (!skipPrecheck)
-            {
-                // Run before the Create/Update publish target selection dialog.
-                var precheckInfo = BuildPluginPublishPrecheckInfo();
-                ApplyUpdateOffer(precheckInfo);
-
-                if (ShouldShowPluginPrecheckDialog(precheckInfo))
-                {
-                    using (var precheckDialog = new PluginPublishPrecheckDialog(precheckInfo))
-                    {
-                        var result = precheckDialog.ShowDialog(this);
-                        if (result == DialogResult.Cancel)
-                        {
-                            return;
-                        }
-
-                        if (result == DialogResult.Retry)
-                        {
-                            if (!TryStartPluginUpdateFromPrecheck(precheckInfo, () => BeginPublishFlow(skipPrecheck: true)))
-                            {
-                                return;
-                            }
-
-                            // Publish will resume after the plug-in installation completes.
-                            return;
-                        }
-                    }
-                }
             }
 
             if (!EnsureActivePluginTypeLoaded())
@@ -2174,408 +2158,6 @@ namespace NameBuilderConfigurator
                         }
                     });
             }
-        }
-
-        private bool ShouldShowPluginPrecheckDialog(PluginPublishPrecheckInfo info)
-        {
-            if (info == null)
-            {
-                return false;
-            }
-
-            // Always show if plug-in is missing, or if we're offering an update/install action.
-            if (!info.IsInstalled || info.CanOfferUpdate)
-            {
-                return true;
-            }
-
-            // Only skip silently when we can confidently compare and versions match.
-            if (TryParseVersion(GetLocalComparableVersionString(info), out var localVersion) &&
-                TryParseVersion(GetInstalledComparableVersionString(info), out var installedVersion))
-            {
-                return localVersion != installedVersion;
-            }
-
-            // If we can't compare, show the dialog (so the user can see what's missing).
-            return true;
-        }
-
-        private void ApplyUpdateOffer(PluginPublishPrecheckInfo info)
-        {
-            if (info == null)
-            {
-                return;
-            }
-
-            var hasLocalDll = !string.IsNullOrWhiteSpace(info.LocalAssemblyPath) && File.Exists(info.LocalAssemblyPath);
-            if (!hasLocalDll)
-            {
-                info.CanOfferUpdate = false;
-                return;
-            }
-
-            if (!info.IsInstalled)
-            {
-                info.CanOfferUpdate = true;
-                info.UpdateActionText = "Install plug-in first";
-                return;
-            }
-
-            // Offer update when local FileVersion is newer than installed FileVersion (or installed version fallback).
-            if (TryParseVersion(GetLocalComparableVersionString(info), out var localVersion) &&
-                TryParseVersion(GetInstalledComparableVersionString(info), out var installedVersion) &&
-                localVersion > installedVersion)
-            {
-                info.CanOfferUpdate = true;
-                info.UpdateActionText = "Update plug-in first";
-            }
-        }
-
-        private bool TryStartPluginUpdateFromPrecheck(PluginPublishPrecheckInfo info, Action continuation)
-        {
-            if (info == null)
-            {
-                return false;
-            }
-
-            var path = info.LocalAssemblyPath;
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-            {
-                MessageBox.Show(this, "Packaged NameBuilder.dll could not be located to install/update.",
-                    "Plug-in Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return false;
-            }
-
-            // Best-effort solution selection. If solutions aren't loaded, or the user cancels, fall back to null.
-            Guid? solutionId = null;
-            try
-            {
-                var preference = GetConnectionPreference();
-                solutionId = preference?.PluginSolutionId;
-                var selectedSolutionItem = preference != null
-                    ? solutions?.FirstOrDefault(s => s.SolutionId == solutionId)
-                    : null;
-
-                if (solutions != null && solutions.Count > 0 && (!solutionId.HasValue || IsDefaultSolution(selectedSolutionItem)))
-                {
-                    using (var solutionDialog = new PluginSolutionSelectionDialog(solutions, solutionId))
-                    {
-                        if (solutionDialog.ShowDialog(this) == DialogResult.OK)
-                        {
-                            solutionId = solutionDialog.SelectedSolutionId;
-                            PersistConnectionPreference(pref =>
-                            {
-                                pref.PluginSolutionId = solutionDialog.SelectedSolutionId;
-                                pref.PluginSolutionUniqueName = solutionDialog.SelectedSolutionUniqueName;
-                            });
-                        }
-                        else
-                        {
-                            // User canceled; treat as cancel publish.
-                            return false;
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                solutionId = null;
-            }
-
-            StartPluginInstallation(path, solutionId, postInstallContinuation: continuation);
-            return true;
-        }
-
-        private PluginPublishPrecheckInfo BuildPluginPublishPrecheckInfo()
-        {
-            var info = new PluginPublishPrecheckInfo();
-
-            try
-            {
-                info.EnvironmentName = lastConnectionDetail?.OrganizationFriendlyName
-                    ?? lastConnectionDetail?.OrganizationVersion
-                    ?? lastConnectionDetail?.OrganizationServiceUrl;
-            }
-            catch
-            {
-                // best-effort only
-            }
-
-            try
-            {
-                var installed = TryGetInstalledNameBuilderAssemblyInfo();
-                info.IsInstalled = installed != null;
-                info.InstalledAssemblyName = installed?.Name;
-                info.InstalledVersion = installed?.Version;
-                info.InstalledModifiedOn = installed?.ModifiedOn;
-                info.InstalledAssemblyVersion = installed?.AssemblyVersion;
-                info.InstalledFileVersion = installed?.FileVersion;
-            }
-            catch (Exception ex)
-            {
-                info.ErrorMessage = $"Unable to query installed plug-in: {ex.Message}";
-            }
-
-            try
-            {
-                info.LocalAssemblyPath = ResolveLocalPluginAssemblyPath();
-                if (!string.IsNullOrWhiteSpace(info.LocalAssemblyPath) && File.Exists(info.LocalAssemblyPath))
-                {
-                    var an = AssemblyName.GetAssemblyName(info.LocalAssemblyPath);
-                    info.LocalAssemblyVersion = an?.Version?.ToString();
-
-                    var fvi = FileVersionInfo.GetVersionInfo(info.LocalAssemblyPath);
-                    info.LocalFileVersion = fvi?.FileVersion;
-                }
-                else
-                {
-                    info.WarningOrNote = "Packaged NameBuilder.dll was not found under Assets\\DataversePlugin. Version comparison may be incomplete.";
-                }
-            }
-            catch (Exception ex)
-            {
-                info.ErrorMessage = (string.IsNullOrWhiteSpace(info.ErrorMessage)
-                    ? $"Unable to read packaged plug-in version: {ex.Message}"
-                    : info.ErrorMessage + Environment.NewLine + $"Unable to read packaged plug-in version: {ex.Message}");
-            }
-
-            info.ComparisonSummary = BuildPluginVersionComparisonSummary(info);
-
-            if (info.IsInstalled &&
-                TryParseVersion(GetLocalComparableVersionString(info), out var localVersion) &&
-                TryParseVersion(GetInstalledComparableVersionString(info), out var installedVersion) &&
-                localVersion > installedVersion)
-            {
-                info.WarningOrNote = string.IsNullOrWhiteSpace(info.WarningOrNote)
-                    ? "The packaged plug-in appears newer than the installed plug-in. (Next step could be offering to update the plug-in before publishing.)"
-                    : info.WarningOrNote + Environment.NewLine + "The packaged plug-in appears newer than the installed plug-in.";
-            }
-
-            return info;
-        }
-
-        private string BuildPluginVersionComparisonSummary(PluginPublishPrecheckInfo info)
-        {
-            if (info == null)
-            {
-                return null;
-            }
-
-            if (!info.IsInstalled)
-            {
-                return "Not installed in Dataverse.";
-            }
-
-            var localComparable = GetLocalComparableVersionString(info);
-            var hasLocal = TryParseVersion(localComparable, out var localVersion);
-            var installedComparable = GetInstalledComparableVersionString(info);
-            var hasInstalled = TryParseVersion(installedComparable, out var installedVersion);
-
-            if (!hasLocal && !hasInstalled)
-            {
-                return "Unable to compare versions (both versions are missing/unparseable).";
-            }
-
-            if (!hasLocal)
-            {
-                return "Unable to compare versions (local FileVersion is missing/unparseable).";
-            }
-
-            if (!hasInstalled)
-            {
-                return "Unable to compare versions (installed FileVersion is missing/unparseable).";
-            }
-
-            var cmp = localVersion.CompareTo(installedVersion);
-            if (cmp == 0)
-            {
-                return "Local FileVersion and installed FileVersion match.";
-            }
-
-            if (cmp > 0)
-            {
-                return "Local packaged plug-in FileVersion is NEWER than the installed plug-in.";
-            }
-
-            return "Local packaged plug-in FileVersion is OLDER than the installed plug-in.";
-        }
-
-        private string GetLocalComparableVersionString(PluginPublishPrecheckInfo info)
-        {
-            if (info == null)
-            {
-                return null;
-            }
-
-            // Prefer FileVersion for comparisons (AssemblyVersion is kept stable).
-            if (!string.IsNullOrWhiteSpace(info.LocalFileVersion))
-            {
-                return info.LocalFileVersion;
-            }
-
-            return info.LocalAssemblyVersion;
-        }
-
-        private string GetInstalledComparableVersionString(PluginPublishPrecheckInfo info)
-        {
-            if (info == null)
-            {
-                return null;
-            }
-
-            // Prefer installed DLL FileVersion for comparisons. If it's unavailable,
-            // fall back to the Dataverse pluginassembly.version field.
-            if (!string.IsNullOrWhiteSpace(info.InstalledFileVersion))
-            {
-                return info.InstalledFileVersion;
-            }
-
-            return info.InstalledVersion;
-        }
-
-        private bool TryParseVersion(string value, out Version version)
-        {
-            version = null;
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return false;
-            }
-
-            return Version.TryParse(value.Trim(), out version);
-        }
-
-        private InstalledPluginAssemblyInfo TryGetInstalledNameBuilderAssemblyInfo()
-        {
-            var query = new QueryExpression("pluginassembly")
-            {
-                ColumnSet = new ColumnSet("pluginassemblyid", "name", "version", "modifiedon"),
-                Criteria = new FilterExpression
-                {
-                    Conditions =
-                    {
-                        new ConditionExpression("name", ConditionOperator.Equal, "NameBuilder")
-                    }
-                },
-                TopCount = 1
-            };
-
-            var assembly = Service?.RetrieveMultiple(query)?.Entities?.FirstOrDefault();
-            if (assembly == null)
-            {
-                return null;
-            }
-
-            string contentBase64 = null;
-            try
-            {
-                // Retrieve content separately to avoid pulling the blob in the initial query.
-                var full = Service.Retrieve("pluginassembly", assembly.Id, new ColumnSet("content"));
-                contentBase64 = full?.GetAttributeValue<string>("content");
-            }
-            catch
-            {
-                // If content can't be retrieved, continue with what we have.
-            }
-
-            var extracted = TryExtractVersionInfoFromBase64Dll(contentBase64);
-
-            return new InstalledPluginAssemblyInfo
-            {
-                Id = assembly.Id,
-                Name = assembly.GetAttributeValue<string>("name"),
-                Version = assembly.GetAttributeValue<string>("version"),
-                ModifiedOn = assembly.GetAttributeValue<DateTime?>("modifiedon"),
-                AssemblyVersion = extracted?.AssemblyVersion,
-                FileVersion = extracted?.FileVersion
-            };
-        }
-
-        private InstalledDllVersionInfo TryExtractVersionInfoFromBase64Dll(string base64)
-        {
-            if (string.IsNullOrWhiteSpace(base64))
-            {
-                return null;
-            }
-
-            byte[] bytes;
-            try
-            {
-                bytes = Convert.FromBase64String(base64);
-            }
-            catch
-            {
-                return null;
-            }
-
-            var tempPath = Path.Combine(Path.GetTempPath(), $"NameBuilder_{Guid.NewGuid():N}.dll");
-            try
-            {
-                File.WriteAllBytes(tempPath, bytes);
-
-                string assemblyVersion = null;
-                string fileVersion = null;
-
-                try
-                {
-                    var an = AssemblyName.GetAssemblyName(tempPath);
-                    assemblyVersion = an?.Version?.ToString();
-                }
-                catch
-                {
-                    // ignore
-                }
-
-                try
-                {
-                    var fvi = FileVersionInfo.GetVersionInfo(tempPath);
-                    fileVersion = fvi?.FileVersion;
-                }
-                catch
-                {
-                    // ignore
-                }
-
-                if (string.IsNullOrWhiteSpace(assemblyVersion) && string.IsNullOrWhiteSpace(fileVersion))
-                {
-                    return null;
-                }
-
-                return new InstalledDllVersionInfo
-                {
-                    AssemblyVersion = assemblyVersion,
-                    FileVersion = fileVersion
-                };
-            }
-            finally
-            {
-                try
-                {
-                    if (File.Exists(tempPath))
-                    {
-                        File.Delete(tempPath);
-                    }
-                }
-                catch
-                {
-                    // ignore cleanup errors
-                }
-            }
-        }
-
-        private sealed class InstalledPluginAssemblyInfo
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public string Version { get; set; }
-            public DateTime? ModifiedOn { get; set; }
-            public string AssemblyVersion { get; set; }
-            public string FileVersion { get; set; }
-        }
-
-        private sealed class InstalledDllVersionInfo
-        {
-            public string AssemblyVersion { get; set; }
-            public string FileVersion { get; set; }
         }
 
         private void StartRetrieveConfigurationFlow()
@@ -3298,7 +2880,7 @@ namespace NameBuilderConfigurator
             if (publishToolButton == null)
                 return;
 
-            publishToolButton.Enabled = Service != null && !pluginPresenceCheckRunning && !pluginInstallRunning;
+            publishToolButton.Enabled = pluginPresenceVerified && Service != null;
             var tooltipTarget = activeRegistryStep != null
                 ? activeRegistryStep.Name ?? activeRegistryStep.StepId.ToString()
                 : (currentEntityDisplayName ?? currentEntityLogicalName ?? "this entity");
@@ -5394,10 +4976,7 @@ namespace NameBuilderConfigurator
                     using (var fs = new FileStream(iconPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                     using (var original = Image.FromStream(fs))
                     {
-                        using (var clone = new Bitmap(original))
-                        {
-                            return new Bitmap(clone, new Size(20, 20));
-                        }
+                        return new Bitmap(original, new Size(18, 18));
                     }
                 }
                 catch
@@ -5482,10 +5061,7 @@ namespace NameBuilderConfigurator
                     using (var ms = new MemoryStream(bytes))
                     using (var original = Image.FromStream(ms))
                     {
-                        using (var clone = new Bitmap(original))
-                        {
-                            return new Bitmap(clone, new Size(20, 20));
-                        }
+                        return new Bitmap(original, new Size(18, 18));
                     }
                 }
                 catch
@@ -5504,10 +5080,15 @@ namespace NameBuilderConfigurator
                 return null;
             }
 
-            using (var bitmap = baseIcon.ToBitmap())
+            var bitmap = baseIcon.ToBitmap();
+            if (bitmap.Width == 18 && bitmap.Height == 18)
             {
-                return new Bitmap(bitmap, new Size(20, 20));
+                return bitmap;
             }
+
+            var resized = new Bitmap(bitmap, new Size(18, 18));
+            bitmap.Dispose();
+            return resized;
         }
         
         /// <summary>
@@ -7338,7 +6919,7 @@ class PluginUserSettings
 {
     public double LeftPanelProportion { get; set; } = 0.30;
     public double RightPanelProportion { get; set; } = 0.35;
-    public int PreviewHeight { get; set; } = 56;
+    public int PreviewHeight { get; set; } = 60;
     public int? DefaultTimezoneOffset { get; set; } = null;
     public string DefaultPrefix { get; set; } = null;
     public string DefaultSuffix { get; set; } = null;
