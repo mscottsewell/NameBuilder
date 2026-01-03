@@ -7,9 +7,9 @@
 **Automatically build consistent, meaningful record names** from other fields on your Dataverse records—no code required.
 
 >In Dataverse / PowerApps / Dynamics 365 CRM, the primary name field is what users see in lookups, timelines, views, and search results. 
-<br>Typically the information for the name is already entered on the form, so it's a waste of the user's time to enter/maintain it in two places.
-<br>If that name is inconsistent or incomplete, users waste time opening records just to confirm what they're looking at. 
-<br>NameBuilder solves this by automatically assembling names from the fields that matter most.
+Typically the information for the name is already entered on the form, so it's a waste of the user's time to enter/maintain it in two places.
+If that name is inconsistent or incomplete, users waste time opening records just to confirm what they're looking at. 
+NameBuilder solves this by **automatically assembling names** from the fields that matter most.
 
 <img width="1000" alt="image" src="https://github.com/user-attachments/assets/ce3dfec3-f4a2-4e7b-9281-8d3df2254ec2" />
 
