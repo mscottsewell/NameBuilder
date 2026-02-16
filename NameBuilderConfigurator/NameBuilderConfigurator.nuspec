@@ -11,7 +11,24 @@
     <projectUrl>https://github.com/mscottsewell/NameBuilder</projectUrl>
     <summary>Visual designer for the NameBuilder Dataverse plug-in. Connect through XrmToolBox, assemble name patterns, preview the output, and publish JSON back to Create/Update steps without writing code.</summary>
     <description>XrmToolBox based utility for configuring NameBuilder for Dataverse. See the README for usage instructions.</description>
-    <releaseNotes>Review CHANGELOG or git history for details.</releaseNotes>
+    <releaseNotes>
+Plugin fixes (NameBuilderPlugin/):
+  Fix alternate field fallback to copy ALL properties (prefix, suffix, includeIf, nested alternates, timezoneOffsetHours) not just a subset
+  Add max recursion depth (5) to alternate field resolution to prevent StackOverflowException from circular alternate chains
+  Expand GetAllFieldNames() to include attributes from IncludeIf conditions and AlternateField chains so Update triggers correctly
+  Add max-size eviction (10K entries) to static metadata caches to prevent unbounded memory growth in the Dataverse sandbox
+  Add max-size limit (1K entries) to config cache
+  Fix null reference on LocalizedLabels using FirstOrDefault()
+  Use CultureInfo.InvariantCulture for decimal.TryParse in condition evaluator to prevent silent failures in non-US locales
+  Add typed exception variable to empty catch blocks
+  Remove dead NullTracingService.Trace(string) overload
+
+Configurator fixes (NameBuilderConfigurator/):
+  Replace lock(LogFilePath) with dedicated lock object to prevent potential deadlocks from string interning
+  Use Assembly.Load(byte[]) instead of LoadFrom to avoid locking the DLL file and pass pre-read bytes to validation (fixes race condition)
+  Remove redundant/buggy solution reordering block that used wrong index variable (defaultIndex vs defaultIndex2)
+  Cache Font instances as static fields to prevent GDI handle leaks Add Dispose override for ToolTip cleanup in dialog classes
+    </releaseNotes>
     <tags>XrmToolBox Dataverse NameBuilder Plugin</tags>
     <iconUrl>https://raw.githubusercontent.com/mscottsewell/NameBuilder/main/NameBuilderConfigurator/Assets/Icon/NameBuilder_32x32.png</iconUrl>
     <readme>README.md</readme>
@@ -24,6 +41,6 @@
     <file src="Assets\**\*.*" exclude="Assets\Icon\Backups\**\*.*;Assets\**\*.pdb" target="content\Plugins\NameBuilderConfigurator\Assets\" />
     <file src="Assets\Icon\NameBuilder_80x80.png" target="icon.png" />
     <file src="README.md" target="README.md" />
-    <file src="LICENSE" target="LICENSE" />
+    <file src="..\LICENSE" target="LICENSE" />
   </files>
 </package>
