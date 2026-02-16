@@ -254,6 +254,5 @@ namespace NameBuilder
     internal class NullTracingService : ITracingService
     {
         public void Trace(string format, params object[] args) { }
-        public void Trace(string message) { }
     }
 }

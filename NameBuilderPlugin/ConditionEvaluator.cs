@@ -227,7 +227,8 @@ namespace NameBuilder
             if (string.IsNullOrWhiteSpace(fieldValueStr) || string.IsNullOrWhiteSpace(expectedValue))
                 return false;
 
-            if (decimal.TryParse(fieldValueStr, out decimal fieldNum) && decimal.TryParse(expectedValue, out decimal expectedNum))
+            if (decimal.TryParse(fieldValueStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal fieldNum) &&
+                decimal.TryParse(expectedValue, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal expectedNum))
             {
                 return comparison(fieldNum, expectedNum);
             }

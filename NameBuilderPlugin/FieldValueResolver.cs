@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 using Microsoft.Xrm.Sdk.Metadata;
@@ -24,12 +25,26 @@ namespace NameBuilder
     {
         private readonly IOrganizationService _service;
         private readonly ITracingService _tracingService;
+
+        private const int MaxCacheSize = 10000;
+
         // Cache option set labels to avoid repeated metadata retrievals: key = entity|attribute|value
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _optionLabelCache = new System.Collections.Concurrent.ConcurrentDictionary<string, string>();
         // Cache primary name attributes: key = entityLogicalName
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _primaryNameCache = new System.Collections.Concurrent.ConcurrentDictionary<string, string>();
         // Cache field type metadata: key = entity|fieldname, value = AttributeTypeCode
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Microsoft.Xrm.Sdk.Metadata.AttributeTypeCode> _fieldTypeCache = new System.Collections.Concurrent.ConcurrentDictionary<string, Microsoft.Xrm.Sdk.Metadata.AttributeTypeCode>();
+
+        /// <summary>
+        /// Evicts all entries from a cache when it exceeds <see cref="MaxCacheSize"/>.
+        /// </summary>
+        private static void EnforceCacheLimit<TKey, TValue>(System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue> cache)
+        {
+            if (cache.Count > MaxCacheSize)
+            {
+                cache.Clear();
+            }
+        }
 
         /// <summary>
         /// Creates a new resolver.
@@ -60,6 +75,13 @@ namespace NameBuilder
         /// <returns>Resolved text (possibly empty).</returns>
         public string ResolvePatternFieldValue(Entity entity, PatternPart patternPart)
         {
+            return ResolvePatternFieldValue(entity, patternPart, 0);
+        }
+
+        private const int MaxAlternateDepth = 5;
+
+        private string ResolvePatternFieldValue(Entity entity, PatternPart patternPart, int depth)
+        {
             if (patternPart == null)
             {
                 throw new ArgumentNullException(nameof(patternPart));
@@ -85,20 +107,10 @@ namespace NameBuilder
             if (entity == null || !entity.Contains(patternPart.FieldName))
             {
                 // Try alternate field if specified
-                if (patternPart.AlternateField != null)
+                if (patternPart.AlternateField != null && depth < MaxAlternateDepth)
                 {
-                    // Create a derived PatternPart for the alternate field, inheriting any defaults not specified.
-                    var alternatePart = new PatternPart
-                    {
-                        IsField = true,
-                        FieldName = patternPart.AlternateField.Field,
-                        FieldType = patternPart.AlternateField.Type ?? PatternParser.InferFieldType(patternPart.AlternateField.Field),
-                        DateFormat = patternPart.AlternateField.Format ?? "yyyy-MM-dd",
-                        MaxFieldLength = patternPart.AlternateField.MaxLength,
-                        TruncationIndicator = patternPart.AlternateField.TruncationIndicator ?? "...",
-                        DefaultValue = patternPart.AlternateField.Default
-                    };
-                    return ResolvePatternFieldValue(entity, alternatePart);
+                    var alternatePart = BuildAlternatePatternPart(patternPart.AlternateField);
+                    return ResolvePatternFieldValue(entity, alternatePart, depth + 1);
                 }
                 
                 // Return default value if specified
@@ -151,20 +163,10 @@ namespace NameBuilder
                 if (string.IsNullOrEmpty(value))
                 {
                     // Try alternate field if specified
-                    if (patternPart.AlternateField != null)
+                    if (patternPart.AlternateField != null && depth < MaxAlternateDepth)
                     {
-                        var alternatePart = new PatternPart
-                        {
-                            IsField = true,
-                            FieldName = patternPart.AlternateField.Field,
-                            FieldType = patternPart.AlternateField.Type ?? PatternParser.InferFieldType(patternPart.AlternateField.Field),
-                            DateFormat = patternPart.AlternateField.Format ?? "yyyy-MM-dd",
-                            MaxFieldLength = patternPart.AlternateField.MaxLength,
-                            TruncationIndicator = patternPart.AlternateField.TruncationIndicator ?? "...",
-                            DefaultValue = patternPart.AlternateField.Default,
-                            TimezoneOffsetHours = patternPart.AlternateField.TimezoneOffsetHours
-                        };
-                        value = ResolvePatternFieldValue(entity, alternatePart);
+                        var alternatePart = BuildAlternatePatternPart(patternPart.AlternateField);
+                        value = ResolvePatternFieldValue(entity, alternatePart, depth + 1);
                     }
                     
                     if (string.IsNullOrEmpty(value) && !string.IsNullOrEmpty(patternPart.DefaultValue))
@@ -189,20 +191,10 @@ namespace NameBuilder
                 _tracingService.Trace($"Error resolving field '{patternPart.FieldName}': {ex.Message}");
                 
                 // Try alternate field on error
-                if (patternPart.AlternateField != null)
+                if (patternPart.AlternateField != null && depth < MaxAlternateDepth)
                 {
-                    var alternatePart = new PatternPart
-                    {
-                        IsField = true,
-                        FieldName = patternPart.AlternateField.Field,
-                        FieldType = patternPart.AlternateField.Type ?? PatternParser.InferFieldType(patternPart.AlternateField.Field),
-                        DateFormat = patternPart.AlternateField.Format ?? "yyyy-MM-dd",
-                        MaxFieldLength = patternPart.AlternateField.MaxLength,
-                        TruncationIndicator = patternPart.AlternateField.TruncationIndicator ?? "...",
-                        DefaultValue = patternPart.AlternateField.Default,
-                        TimezoneOffsetHours = patternPart.AlternateField.TimezoneOffsetHours
-                    };
-                    return ResolvePatternFieldValue(entity, alternatePart);
+                    var alternatePart = BuildAlternatePatternPart(patternPart.AlternateField);
+                    return ResolvePatternFieldValue(entity, alternatePart, depth + 1);
                 }
                 
                 return patternPart.DefaultValue ?? string.Empty;
@@ -210,6 +202,29 @@ namespace NameBuilder
 
             // Wrap with prefix/suffix if value is not empty
             return WrapWithPrefixSuffix(value, patternPart);
+        }
+
+        /// <summary>
+        /// Builds a fully populated <see cref="PatternPart"/> from a <see cref="FieldConfiguration"/>,
+        /// copying all relevant properties so alternate fields behave identically to primary fields.
+        /// </summary>
+        private static PatternPart BuildAlternatePatternPart(FieldConfiguration altConfig)
+        {
+            return new PatternPart
+            {
+                IsField = true,
+                FieldName = altConfig.Field,
+                FieldType = altConfig.Type ?? PatternParser.InferFieldType(altConfig.Field),
+                DateFormat = altConfig.Format ?? "yyyy-MM-dd",
+                MaxFieldLength = altConfig.MaxLength,
+                TruncationIndicator = altConfig.TruncationIndicator ?? "...",
+                DefaultValue = altConfig.Default,
+                TimezoneOffsetHours = altConfig.TimezoneOffsetHours,
+                Prefix = altConfig.Prefix,
+                Suffix = altConfig.Suffix,
+                IncludeIf = altConfig.IncludeIf,
+                AlternateField = altConfig.AlternateField
+            };
         }
 
         /// <summary>
@@ -384,6 +399,7 @@ namespace NameBuilder
                 var cols = new ColumnSet("currencysymbol");
                 var currency = _service.Retrieve("transactioncurrency", currencyRef.Id, cols);
                 var symbol = currency.GetAttributeValue<string>("currencysymbol") ?? string.Empty;
+                EnforceCacheLimit(_currencySymbolCache);
                 _currencySymbolCache[currencyRef.Id] = symbol;
                 return symbol;
             }
@@ -535,8 +551,10 @@ namespace NameBuilder
                 {
                     if (option.Value == optionSet.Value)
                     {
-                        var label = option.Label.UserLocalizedLabel?.Label ?? option.Label.LocalizedLabels[0]?.Label;
+                        var label = option.Label.UserLocalizedLabel?.Label
+                            ?? option.Label.LocalizedLabels?.FirstOrDefault()?.Label;
                         var finalLabel = label ?? optionSet.Value.ToString();
+                        EnforceCacheLimit(_optionLabelCache);
                         _optionLabelCache[cacheKey] = finalLabel;
                         return finalLabel;
                     }
@@ -577,6 +595,7 @@ namespace NameBuilder
                 )).EntityMetadata;
 
                 var primaryName = entityMetadata.PrimaryNameAttribute;
+                EnforceCacheLimit(_primaryNameCache);
                 _primaryNameCache[entityLogicalName] = primaryName;
                 return primaryName;
             }
@@ -618,6 +637,7 @@ namespace NameBuilder
 
                 if (attributeType.HasValue)
                 {
+                    EnforceCacheLimit(_fieldTypeCache);
                     _fieldTypeCache[cacheKey] = attributeType.Value;
                     return attributeType.Value;
                 }

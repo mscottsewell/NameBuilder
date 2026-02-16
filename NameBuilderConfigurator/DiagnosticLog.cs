@@ -14,6 +14,7 @@ namespace NameBuilderConfigurator
             "NameBuilderConfigurator");
 
         private static readonly string LogFilePath = Path.Combine(LogDirectory, "diagnostics.log");
+        private static readonly object _logLock = new object();
 
         /// <summary>Logs an error with operation context for troubleshooting.</summary>
         /// <param name="operation">The operation being performed when the error occurred.</param>
@@ -56,7 +57,7 @@ namespace NameBuilderConfigurator
                     : $"{timestamp} [{level}] [{operation}] {content}\n";
 
                 // Append to log file (with basic file size management)
-                lock (LogFilePath)
+                lock (_logLock)
                 {
                     var fileInfo = new FileInfo(LogFilePath);
                     if (fileInfo.Exists && fileInfo.Length > 5_000_000) // 5MB limit

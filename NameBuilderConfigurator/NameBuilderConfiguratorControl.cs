@@ -470,14 +470,6 @@ namespace NameBuilderConfigurator
                         solutions.Sort((a, b) => a.FriendlyName.CompareTo(b.FriendlyName));
                     }
 
-                    var defaultIndex2 = solutions.FindIndex(IsDefaultSolution);
-                    if (defaultIndex2 > 0)
-                    {
-                        var defaults = solutions[defaultIndex2];
-                        solutions.RemoveAt(defaultIndex);
-                        solutions.Insert(0, defaults);
-                    }
-
                     suppressSolutionSelectionChanged = true;
                     solutionDropdown.Items.Clear();
                     foreach (var solution in solutions)

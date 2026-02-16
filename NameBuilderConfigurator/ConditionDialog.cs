@@ -16,6 +16,18 @@ namespace  NameBuilderConfigurator
     /// </remarks>
     public class ConditionDialog : Form
     {
+        private readonly System.ComponentModel.IContainer components = null;
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                helpToolTip?.Dispose();
+                components?.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
         private RadioButton simpleRadio;
         private RadioButton compoundRadio;
         private Panel simplePanel;

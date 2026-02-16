@@ -182,9 +182,13 @@ namespace NameBuilderConfigurator
             {
                 // Validate assembly name before loading to ensure it's the expected plugin
                 var assemblyName = AssemblyName.GetAssemblyName(absolutePath);
-                ValidateExpectedAssembly(assemblyName, absolutePath);
 
-                var assembly = Assembly.LoadFrom(absolutePath);
+                // Read bytes once and pass through validation to avoid re-reading (race condition)
+                var assemblyBytes = File.ReadAllBytes(absolutePath);
+                ValidateExpectedAssembly(assemblyName, assemblyBytes);
+
+                // Load from bytes to avoid locking the DLL file on disk
+                var assembly = Assembly.Load(assemblyBytes);
                 var pluginContract = typeof(IPlugin);
                 var definitions = new List<PluginClassDefinition>();
 
@@ -230,7 +234,7 @@ namespace NameBuilderConfigurator
             }
         }
 
-        private static void ValidateExpectedAssembly(AssemblyName assemblyName, string assemblyPath)
+        private static void ValidateExpectedAssembly(AssemblyName assemblyName, byte[] assemblyBytes)
         {
             if (assemblyName == null)
             {
@@ -238,11 +242,9 @@ namespace NameBuilderConfigurator
             }
 
             // Accept both exact name match and files that match the expected name
-            var fileName = Path.GetFileNameWithoutExtension(assemblyPath);
             var asmName = assemblyName.Name;
 
-            if (!asmName.Equals("NameBuilder", StringComparison.OrdinalIgnoreCase) &&
-                !fileName.Equals("NameBuilder", StringComparison.OrdinalIgnoreCase))
+            if (!asmName.Equals("NameBuilder", StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException(
                     $"The selected DLL does not appear to be the NameBuilder assembly. " +
@@ -265,7 +267,7 @@ namespace NameBuilderConfigurator
 
             if (!string.IsNullOrWhiteSpace(expected.Hash))
             {
-                var currentHash = ComputeSha256Hex(File.ReadAllBytes(assemblyPath));
+                var currentHash = ComputeSha256Hex(assemblyBytes);
                 if (string.IsNullOrWhiteSpace(currentHash) ||
                     !currentHash.Equals(expected.Hash, StringComparison.OrdinalIgnoreCase))
                 {

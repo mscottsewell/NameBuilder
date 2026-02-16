@@ -20,8 +20,9 @@ namespace NameBuilder
     public class PluginConfiguration
     {
         // Cache parsed configurations to avoid re-parsing JSON for every invocation.
-        // Key is the raw JSON string. This keeps parsing costs low but means changes to config require a plugin reload.
+        // Key is the raw JSON string. Cleared when it exceeds MaxConfigCacheSize to prevent unbounded growth.
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, PluginConfiguration> _configCache = new System.Collections.Concurrent.ConcurrentDictionary<string, PluginConfiguration>();
+        private const int MaxConfigCacheSize = 1000;
         /// <summary>
         /// Target field to populate (typically "name")
         /// </summary>
@@ -133,6 +134,10 @@ namespace NameBuilder
                     }
 
                     // Cache and return
+                    if (_configCache.Count > MaxConfigCacheSize)
+                    {
+                        _configCache.Clear();
+                    }
                     _configCache[jsonConfig] = config;
                     return config;
                 }
@@ -164,28 +169,71 @@ namespace NameBuilder
                     return stringMetadata.MaxLength;
                 }
             }
-            catch
+            catch (Exception)
             {
-                // Ignore errors - maxLength will remain null
+                // Metadata retrieval failed; maxLength will remain null and be inferred at runtime
             }
 
             return null;
         }
 
         /// <summary>
-        /// Gets a list of all attribute logical names referenced by the parsed configuration.
+        /// Gets a list of all attribute logical names referenced by the parsed configuration,
+        /// including fields in conditions and alternate field chains.
         /// </summary>
         public List<string> GetAllFieldNames()
         {
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (ParsedPatternParts != null)
             {
-                return ParsedPatternParts
-                    .Where(p => p.IsField)
-                    .Select(p => p.FieldName)
-                    .ToList();
+                foreach (var p in ParsedPatternParts)
+                {
+                    if (p.IsField)
+                    {
+                        CollectFieldNames(p, names);
+                    }
+                }
             }
             
-            return new List<string>();
+            return names.ToList();
+        }
+
+        private static void CollectFieldNames(PatternPart part, HashSet<string> names)
+        {
+            if (part == null) return;
+
+            if (!string.IsNullOrWhiteSpace(part.FieldName))
+                names.Add(part.FieldName);
+
+            CollectConditionFieldNames(part.IncludeIf, names);
+            CollectAlternateFieldNames(part.AlternateField, names, 0);
+        }
+
+        private static void CollectConditionFieldNames(FieldCondition condition, HashSet<string> names)
+        {
+            if (condition == null) return;
+
+            if (!string.IsNullOrWhiteSpace(condition.Field))
+                names.Add(condition.Field);
+
+            if (condition.AnyOf != null)
+                foreach (var sub in condition.AnyOf)
+                    CollectConditionFieldNames(sub, names);
+
+            if (condition.AllOf != null)
+                foreach (var sub in condition.AllOf)
+                    CollectConditionFieldNames(sub, names);
+        }
+
+        private static void CollectAlternateFieldNames(FieldConfiguration alt, HashSet<string> names, int depth)
+        {
+            if (alt == null || depth > 5) return;
+
+            if (!string.IsNullOrWhiteSpace(alt.Field))
+                names.Add(alt.Field);
+
+            CollectConditionFieldNames(alt.IncludeIf, names);
+            CollectAlternateFieldNames(alt.AlternateField, names, depth + 1);
         }
     }
 
@@ -519,7 +567,7 @@ namespace NameBuilder
                         }
                     }
                 }
-                catch
+                catch (Exception)
                 {
                     // Fall back to naming convention if metadata retrieval fails
                 }

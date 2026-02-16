@@ -14,6 +14,12 @@ namespace NameBuilderConfigurator
     /// </remarks>
     public class FieldBlockControl : UserControl
     {
+        // Shared font instances to avoid GDI handle leaks
+        private static readonly Font ButtonFont = new Font("Segoe UI", 8F, FontStyle.Bold);
+        private static readonly Font FieldLabelFont = new Font("Segoe UI", 9F, FontStyle.Bold);
+        private static readonly Font TypeLabelFont = new Font("Segoe UI", 8F);
+        private static readonly Font DeleteButtonFont = new Font("Segoe UI", 12F);
+
         private Label fieldLabel;
         private Label typeLabel;
         private Button deleteButton;
@@ -103,11 +109,11 @@ namespace NameBuilderConfigurator
                     Width = 28,
                     Height = 25,
                     FlatStyle = FlatStyle.Flat,
-                    Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                    Font = ButtonFont,
                     ForeColor = Color.DarkBlue,
                     Location = new Point(1, 2)
                 };
-                upButton.Click += (s, e) => 
+                upButton.Click += (s, e) =>
                 {
                     EditClicked?.Invoke(this, e);
                     MoveUpClicked?.Invoke(this, e);
@@ -121,7 +127,7 @@ namespace NameBuilderConfigurator
                     Width = 28,
                     Height = 25,
                     FlatStyle = FlatStyle.Flat,
-                    Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                    Font = ButtonFont,
                     ForeColor = Color.DarkBlue,
                     Location = new Point(1, 33)
                 };
@@ -142,7 +148,7 @@ namespace NameBuilderConfigurator
                 AutoSize = false,
                 Width = Math.Max(100, this.ClientSize.Width - (ShowDragHandle ? 80 : 50)),
                 Height = 20,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = FieldLabelFont,
                 AutoEllipsis = true,
                 Cursor = Cursors.Hand,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
@@ -156,7 +162,7 @@ namespace NameBuilderConfigurator
                 AutoSize = false,
                 Width = Math.Max(100, this.ClientSize.Width - (ShowDragHandle ? 80 : 50)),
                 Height = 20,
-                Font = new Font("Segoe UI", 8F),
+                Font = TypeLabelFont,
                 ForeColor = Color.Gray,
                 AutoEllipsis = true,
                 Cursor = Cursors.Hand,
@@ -172,7 +178,7 @@ namespace NameBuilderConfigurator
                 Height = 50,
                 FlatStyle = FlatStyle.Flat,
                 ForeColor = Color.Red,
-                Font = new Font("Segoe UI", 12F),
+                Font = DeleteButtonFont,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
             deleteButton.Left = this.ClientSize.Width - deleteButton.Width - 5;

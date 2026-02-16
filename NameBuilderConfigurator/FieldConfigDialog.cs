@@ -15,6 +15,18 @@ namespace NameBuilderConfigurator
     /// </remarks>
     public class FieldConfigDialog : Form
     {
+        private readonly System.ComponentModel.IContainer components = null;
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                helpToolTip?.Dispose();
+                components?.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
         private FieldConfiguration config;
         private AttributeMetadata attrMetadata;
         
