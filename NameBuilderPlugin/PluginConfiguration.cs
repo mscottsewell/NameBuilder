@@ -506,10 +506,12 @@ namespace NameBuilder
                 part.FieldType = InferFieldType(part.FieldName, service, entityLogicalName);
             }
 
-            // Third segment is the format (for dates, optional)
+            // Third segment onward is the format (for dates, optional).
+            // All remaining segments are re-joined with ':' so that multi-colon formats
+            // (e.g., "HH:mm:ss" or casing-prefixed "upper:MMM") are preserved intact.
             if (segments.Length > 2)
             {
-                part.DateFormat = segments[2].Trim();
+                part.DateFormat = string.Join(":", segments, 2, segments.Length - 2).Trim();
             }
 
             return part;

@@ -15,6 +15,7 @@ for the Dataverse Name Builder Plugin.
 fieldname                    → Auto-detected type via metadata
 fieldname:type               → Explicit type (overrides auto-detection)
 fieldname:date:format        → Date with custom format
+fieldname:date:upper:MMM     → Date with format + casing (upper/lower/title)
 literal text                 → Any non-field text becomes delimiter
 ```
 
@@ -273,6 +274,85 @@ Result: `2025-12-01 14:30:45`
 ```
 
 Result: `20251201`
+
+### Full Month Name and Day of Week
+
+```json
+{
+  "targetField": "name",
+  "pattern": "createdon:date:dddd, MMMM dd yyyy"
+}
+```
+
+Result: `Monday, December 01 2025`
+
+### Month Name (Mixed Case)
+
+```json
+{
+  "targetField": "name",
+  "pattern": "createdon:date:MMMM yyyy"
+}
+```
+
+Result: `December 2025`
+
+### Month Abbreviation Uppercase
+
+```json
+{
+  "targetField": "name",
+  "pattern": "createdon:date:upper:MMM"
+}
+```
+
+Result: `DEC`
+
+### Full Month Name Lowercase
+
+```json
+{
+  "targetField": "name",
+  "pattern": "createdon:date:lower:MMMM"
+}
+```
+
+Result: `december`
+
+### Day of Week Uppercase Abbreviation
+
+```json
+{
+  "targetField": "name",
+  "pattern": "createdon:date:upper:ddd"
+}
+```
+
+Result: `MON`
+
+### Day of Week with Title Case (structured fields config)
+
+```json
+{
+  "targetField": "name",
+  "fields": [
+    { "field": "new_startdate", "type": "date", "format": "title:dddd" }
+  ]
+}
+```
+
+Result: `Monday`
+
+### Combined Month and Year with Uppercase Month
+
+```json
+{
+  "targetField": "name",
+  "pattern": "accountnumber-createdon:date:upper:MMM-yyyy"
+}
+```
+
+Result: `ACC001-DEC-2025`
 
 ## 8. Examples with Max Length
 

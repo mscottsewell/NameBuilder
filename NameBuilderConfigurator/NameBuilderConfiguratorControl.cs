@@ -6970,7 +6970,37 @@ namespace NameBuilderConfigurator
                     {
                         if (config.TimezoneOffsetHours.HasValue)
                             dateTime = dateTime.AddHours(config.TimezoneOffsetHours.Value);
-                        valueStr = dateTime.ToString(config.Format);
+
+                        // Detect optional casing prefix: "upper:", "lower:", or "title:"
+                        string caseTransform = null;
+                        string effectiveFormat = config.Format;
+                        if (config.Format.Length > 6)
+                        {
+                            if (config.Format.StartsWith("upper:", StringComparison.OrdinalIgnoreCase))
+                            {
+                                caseTransform = "upper";
+                                effectiveFormat = config.Format.Substring(6);
+                            }
+                            else if (config.Format.StartsWith("lower:", StringComparison.OrdinalIgnoreCase))
+                            {
+                                caseTransform = "lower";
+                                effectiveFormat = config.Format.Substring(6);
+                            }
+                            else if (config.Format.StartsWith("title:", StringComparison.OrdinalIgnoreCase))
+                            {
+                                caseTransform = "title";
+                                effectiveFormat = config.Format.Substring(6);
+                            }
+                        }
+
+                        var formatted = dateTime.ToString(effectiveFormat, System.Globalization.CultureInfo.InvariantCulture);
+                        switch (caseTransform)
+                        {
+                            case "upper": valueStr = formatted.ToUpperInvariant(); break;
+                            case "lower": valueStr = formatted.ToLowerInvariant(); break;
+                            case "title": valueStr = System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(formatted.ToLowerInvariant()); break;
+                            default:      valueStr = formatted; break;
+                        }
                     }
                     catch { valueStr = dateTime.ToString(); }
                 }

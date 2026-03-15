@@ -136,20 +136,20 @@ namespace NameBuilderConfigurator
                 Location = new Point(controlX, y),
                 Size = new Size(controlWidth, 23)
             };
-            helpToolTip.SetToolTip(formatTextBox, "Format string for dates (.NET format) or numbers (e.g., #,##0.00). Leave blank to use field value as-is.");
+            helpToolTip.SetToolTip(formatTextBox, "Format string for dates or numbers. Date: yyyy-MM-dd, MMMM (January), upper:MMM (JAN), dddd (Monday), upper:ddd (MON). Number: #,##0.00. Leave blank to use field value as-is.");
             this.Controls.Add(formatTextBox);
             y += 25;
             
             formatExampleLabel = new Label
             {
                 Location = new Point(controlX, y),
-                Size = new Size(controlWidth, 35),
+                Size = new Size(controlWidth, 55),
                 ForeColor = Color.Gray,
                 Font = new Font("Segoe UI", 8F),
                 Text = "Date: yyyy-MM-dd | Number: #,##0.00 | Scaling: 0.0K, 0.00M, 0B"
             };
             this.Controls.Add(formatExampleLabel);
-            y += 45;
+            y += 65;
             
             // Prefix
             AddLabel("Prefix:", 15, y);
@@ -316,7 +316,10 @@ namespace NameBuilderConfigurator
             
             if (type == "date" || type == "datetime")
             {
-                formatExampleLabel.Text = "Examples: yyyy-MM-dd, MM/dd/yyyy, yyyy-MM-dd HH:mm";
+                formatExampleLabel.Text =
+                    "MMMM (January)  MMM (Jan)  upper:MMM (JAN)  lower:MMMM (january)" + Environment.NewLine +
+                    "dddd (Monday)  ddd (Mon)  upper:ddd (MON)  title:dddd (Monday)" + Environment.NewLine +
+                    "yyyy-MM-dd  MM/dd/yyyy  yyyy-MM-dd HH:mm  HH:mm:ss";
             }
             else if (type == "number" || type == "currency")
             {

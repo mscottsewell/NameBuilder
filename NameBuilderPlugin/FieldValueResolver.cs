@@ -474,14 +474,21 @@ namespace NameBuilder
         /// </summary>
         /// <param name="entity">Entity containing the attribute.</param>
         /// <param name="fieldName">Attribute logical name.</param>
-        /// <param name="dateFormat">.NET date format string.</param>
+        /// <param name="dateFormat">
+        /// .NET date format string, optionally prefixed with a casing transform:
+        /// <list type="bullet">
+        ///   <item><description><c>upper:</c> — result is upper-cased (e.g., <c>upper:MMM</c> → "JAN")</description></item>
+        ///   <item><description><c>lower:</c> — result is lower-cased (e.g., <c>lower:MMMM</c> → "january")</description></item>
+        ///   <item><description><c>title:</c> — result is title-cased (e.g., <c>title:dddd</c> → "Monday")</description></item>
+        /// </list>
+        /// The prefix and delimiter colon are stripped before the format string is passed to <see cref="DateTime.ToString(string, IFormatProvider)"/>.
+        /// </param>
         /// <param name="timezoneOffsetHours">
         /// Optional timezone offset (hours) applied to the stored value before formatting.
         /// Dataverse stores DateTime values in UTC in many scenarios; this is a simple display-time adjustment.
         /// </param>
         private string ResolveDateField(Entity entity, string fieldName, string dateFormat, double? timezoneOffsetHours = null)
         {
-
             var dateValue = entity.GetAttributeValue<DateTime>(fieldName);
             if (dateValue == DateTime.MinValue)
             {
@@ -493,9 +500,38 @@ namespace NameBuilder
                 dateValue = dateValue.AddHours(timezoneOffsetHours.Value);
             }
 
+            // Detect optional casing prefix: "upper:", "lower:", or "title:"
+            string caseTransform = null;
+            string effectiveFormat = dateFormat;
+            if (dateFormat != null && dateFormat.Length > 6)
+            {
+                if (dateFormat.StartsWith("upper:", StringComparison.OrdinalIgnoreCase))
+                {
+                    caseTransform = "upper";
+                    effectiveFormat = dateFormat.Substring(6);
+                }
+                else if (dateFormat.StartsWith("lower:", StringComparison.OrdinalIgnoreCase))
+                {
+                    caseTransform = "lower";
+                    effectiveFormat = dateFormat.Substring(6);
+                }
+                else if (dateFormat.StartsWith("title:", StringComparison.OrdinalIgnoreCase))
+                {
+                    caseTransform = "title";
+                    effectiveFormat = dateFormat.Substring(6);
+                }
+            }
+
             try
             {
-                return dateValue.ToString(dateFormat, CultureInfo.InvariantCulture);
+                var result = dateValue.ToString(effectiveFormat, CultureInfo.InvariantCulture);
+                switch (caseTransform)
+                {
+                    case "upper": return result.ToUpperInvariant();
+                    case "lower": return result.ToLowerInvariant();
+                    case "title": return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(result.ToLowerInvariant());
+                    default:      return result;
+                }
             }
             catch (Exception ex)
             {

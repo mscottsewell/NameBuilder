@@ -161,6 +161,27 @@ ajv validate -s plugin-config.schema.json -d opportunity-config.json
 - `yyyy-MM-dd` → 2025-12-01
 - `MM/dd/yyyy` → 12/01/2025
 - `yyyy-MM-dd HH:mm` → 2025-12-01 14:30
+- `HH:mm:ss` → 14:30:00
+- `MMMM` → December *(full month name)*
+- `MMM` → Dec *(abbreviated month name)*
+- `dddd` → Monday *(full day-of-week name)*
+- `ddd` → Mon *(abbreviated day-of-week)*
+
+**Date Casing Transforms** — prepend `upper:`, `lower:`, or `title:` to override letter case:
+
+| Format string | Output |
+|---|---|
+| `upper:MMM` | JAN |
+| `lower:MMMM` | january |
+| `title:dddd` | Monday |
+| `upper:ddd` | MON |
+| `lower:dddd` | tuesday |
+| `title:MMMM` | February |
+
+The casing prefix can be combined with any date format specifier, including composite ones:
+
+- `upper:MMM-yyyy` → `MAR-2025`
+- `lower:ddd dd MMM` → `tue 01 jan`
 
 **Number/Currency Formats:**
 

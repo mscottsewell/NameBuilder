@@ -93,7 +93,7 @@
         },
         "format": {
           "type": "string",
-          "description": "Optional format string for date/datetime/number/currency fields."
+          "description": "Optional format string for date/datetime/number/currency fields. Date/datetime fields accept any .NET date format specifier (e.g., 'yyyy-MM-dd', 'MM/dd/yyyy', 'MMMM' for full month name, 'MMM' for abbreviated month, 'dddd' for full day-of-week name, 'ddd' for abbreviated day). Prepend a casing transform followed by a colon to override letter case: 'upper:MMM' → 'JAN', 'lower:MMMM' → 'january', 'title:dddd' → 'Monday'. Number/currency fields accept .NET numeric format strings (e.g., '#,##0.00') or scale suffixes ('0.0K', '0.00M', '0B')."
         },
         "maxLength": {
           "type": "integer",
