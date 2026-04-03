@@ -30,7 +30,10 @@ using System.Runtime.InteropServices;
 //
 // NOTE: AssemblyVersion is intentionally fixed; only AssemblyFileVersion is bumped by build automation.
 [assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.5")]
+[assembly: AssemblyFileVersion("1.0.0.8")]
+
+
+
 
 
 

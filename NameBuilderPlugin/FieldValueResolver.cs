@@ -500,38 +500,41 @@ namespace NameBuilder
                 dateValue = dateValue.AddHours(timezoneOffsetHours.Value);
             }
 
-            // Detect optional casing prefix: "upper:", "lower:", or "title:"
+            // Detect optional casing prefix: "upper:", "lower:", or "title:".
+            // The prefix may appear anywhere in the format string, e.g.:
+            //   "upper:MMM"           → "" + "JAN"        = "JAN"
+            //   "yyyy.MM - upper:MMM" → "2026.01 - " + "JAN" = "2026.01 - JAN"
             string caseTransform = null;
-            string effectiveFormat = dateFormat;
-            if (dateFormat != null && dateFormat.Length > 6)
+            string leftFormat = null;
+            string rightFormat = dateFormat;
+            if (dateFormat != null)
             {
-                if (dateFormat.StartsWith("upper:", StringComparison.OrdinalIgnoreCase))
-                {
-                    caseTransform = "upper";
-                    effectiveFormat = dateFormat.Substring(6);
-                }
-                else if (dateFormat.StartsWith("lower:", StringComparison.OrdinalIgnoreCase))
-                {
-                    caseTransform = "lower";
-                    effectiveFormat = dateFormat.Substring(6);
-                }
-                else if (dateFormat.StartsWith("title:", StringComparison.OrdinalIgnoreCase))
-                {
-                    caseTransform = "title";
-                    effectiveFormat = dateFormat.Substring(6);
-                }
+                int idx;
+                if ((idx = dateFormat.IndexOf("upper:", StringComparison.OrdinalIgnoreCase)) >= 0)
+                    { caseTransform = "upper"; leftFormat = dateFormat.Substring(0, idx); rightFormat = dateFormat.Substring(idx + 6); }
+                else if ((idx = dateFormat.IndexOf("lower:", StringComparison.OrdinalIgnoreCase)) >= 0)
+                    { caseTransform = "lower"; leftFormat = dateFormat.Substring(0, idx); rightFormat = dateFormat.Substring(idx + 6); }
+                else if ((idx = dateFormat.IndexOf("title:", StringComparison.OrdinalIgnoreCase)) >= 0)
+                    { caseTransform = "title"; leftFormat = dateFormat.Substring(0, idx); rightFormat = dateFormat.Substring(idx + 6); }
             }
 
             try
             {
-                var result = dateValue.ToString(effectiveFormat, CultureInfo.InvariantCulture);
-                switch (caseTransform)
+                if (caseTransform != null)
                 {
-                    case "upper": return result.ToUpperInvariant();
-                    case "lower": return result.ToLowerInvariant();
-                    case "title": return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(result.ToLowerInvariant());
-                    default:      return result;
+                    var leftPart = string.IsNullOrEmpty(leftFormat)
+                        ? ""
+                        : dateValue.ToString(leftFormat, CultureInfo.InvariantCulture);
+                    var rightPart = dateValue.ToString(rightFormat, CultureInfo.InvariantCulture);
+                    switch (caseTransform)
+                    {
+                        case "upper": return leftPart + rightPart.ToUpperInvariant();
+                        case "lower": return leftPart + rightPart.ToLowerInvariant();
+                        case "title": return leftPart + CultureInfo.InvariantCulture.TextInfo.ToTitleCase(rightPart.ToLowerInvariant());
+                        default:      return leftPart + rightPart;
+                    }
                 }
+                return dateValue.ToString(rightFormat, CultureInfo.InvariantCulture);
             }
             catch (Exception ex)
             {

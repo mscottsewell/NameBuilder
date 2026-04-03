@@ -6323,6 +6323,8 @@ namespace NameBuilderConfigurator
                 case "state": return "optionset";
                 case "status": return "optionset";
                 case "lookup": return "lookup";
+                case "owner": return "lookup";
+                case "customer": return "lookup";
                 default: return "string";
             }
         }
@@ -6971,35 +6973,38 @@ namespace NameBuilderConfigurator
                         if (config.TimezoneOffsetHours.HasValue)
                             dateTime = dateTime.AddHours(config.TimezoneOffsetHours.Value);
 
-                        // Detect optional casing prefix: "upper:", "lower:", or "title:"
+                        // Detect optional casing prefix: "upper:", "lower:", or "title:".
+                        // The prefix may appear anywhere in the format string, e.g.:
+                        //   "upper:MMM"           → "" + "JAN"          = "JAN"
+                        //   "yyyy.MM - upper:MMM" → "2026.01 - " + "JAN" = "2026.01 - JAN"
                         string caseTransform = null;
-                        string effectiveFormat = config.Format;
-                        if (config.Format.Length > 6)
+                        string leftFormat = null;
+                        string rightFormat = config.Format;
+                        int cidx;
+                        if ((cidx = config.Format.IndexOf("upper:", StringComparison.OrdinalIgnoreCase)) >= 0)
+                            { caseTransform = "upper"; leftFormat = config.Format.Substring(0, cidx); rightFormat = config.Format.Substring(cidx + 6); }
+                        else if ((cidx = config.Format.IndexOf("lower:", StringComparison.OrdinalIgnoreCase)) >= 0)
+                            { caseTransform = "lower"; leftFormat = config.Format.Substring(0, cidx); rightFormat = config.Format.Substring(cidx + 6); }
+                        else if ((cidx = config.Format.IndexOf("title:", StringComparison.OrdinalIgnoreCase)) >= 0)
+                            { caseTransform = "title"; leftFormat = config.Format.Substring(0, cidx); rightFormat = config.Format.Substring(cidx + 6); }
+
+                        if (caseTransform != null)
                         {
-                            if (config.Format.StartsWith("upper:", StringComparison.OrdinalIgnoreCase))
+                            var lp = string.IsNullOrEmpty(leftFormat)
+                                ? ""
+                                : dateTime.ToString(leftFormat, System.Globalization.CultureInfo.InvariantCulture);
+                            var rp = dateTime.ToString(rightFormat, System.Globalization.CultureInfo.InvariantCulture);
+                            switch (caseTransform)
                             {
-                                caseTransform = "upper";
-                                effectiveFormat = config.Format.Substring(6);
-                            }
-                            else if (config.Format.StartsWith("lower:", StringComparison.OrdinalIgnoreCase))
-                            {
-                                caseTransform = "lower";
-                                effectiveFormat = config.Format.Substring(6);
-                            }
-                            else if (config.Format.StartsWith("title:", StringComparison.OrdinalIgnoreCase))
-                            {
-                                caseTransform = "title";
-                                effectiveFormat = config.Format.Substring(6);
+                                case "upper": valueStr = lp + rp.ToUpperInvariant(); break;
+                                case "lower": valueStr = lp + rp.ToLowerInvariant(); break;
+                                case "title": valueStr = lp + System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(rp.ToLowerInvariant()); break;
+                                default:      valueStr = lp + rp; break;
                             }
                         }
-
-                        var formatted = dateTime.ToString(effectiveFormat, System.Globalization.CultureInfo.InvariantCulture);
-                        switch (caseTransform)
+                        else
                         {
-                            case "upper": valueStr = formatted.ToUpperInvariant(); break;
-                            case "lower": valueStr = formatted.ToLowerInvariant(); break;
-                            case "title": valueStr = System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(formatted.ToLowerInvariant()); break;
-                            default:      valueStr = formatted; break;
+                            valueStr = dateTime.ToString(rightFormat, System.Globalization.CultureInfo.InvariantCulture);
                         }
                     }
                     catch { valueStr = dateTime.ToString(); }

@@ -42,7 +42,7 @@ The plugin intelligently detects field types using a two-tier approach:
 | Metadata: Money | `currency` | `estimatedvalue`, `totalamount`, `budgetamount` |
 | Everything else | `string` | `firstname`, `lastname`, `name` |
 
-**Note**: With metadata detection, custom lookup fields like `new_customer`, `new_primarycontact`, etc., are correctly identified even though they don't end with "id".
+**Note**: With metadata detection, custom lookup fields like `new_customer`, `new_primarycontact`, etc., are correctly identified even though they don't end with "id". Owner-type fields (`ownerid`) and Customer-type fields (`customerid`) are also resolved as `lookup` when metadata is available.
 
 ### Explicit Type Specification
 

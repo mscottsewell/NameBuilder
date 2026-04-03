@@ -12,6 +12,10 @@
     <summary>Visual designer for the NameBuilder Dataverse plug-in. Connect through XrmToolBox, assemble name patterns, preview the output, and publish JSON back to Create/Update steps without writing code.</summary>
     <description>XrmToolBox based utility for configuring NameBuilder for Dataverse. See the README for usage instructions.</description>
     <releaseNotes>
+Configurator fix (NameBuilderConfigurator/):
+  Fix owner/customer lookup fields (ownerid, customerid, etc.) being assigned type "string" instead of "lookup" when added from the attribute list. Owner and Customer attribute types are now correctly mapped to "lookup", matching the plugin's own type inference.
+
+Previous release:
 Plugin fixes (NameBuilderPlugin/):
   Fix alternate field fallback to copy ALL properties (prefix, suffix, includeIf, nested alternates, timezoneOffsetHours) not just a subset
   Add max recursion depth (5) to alternate field resolution to prevent StackOverflowException from circular alternate chains
