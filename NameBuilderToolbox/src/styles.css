@@ -379,7 +379,8 @@ body {
   box-shadow: 0 0 6px var(--accent);
 }
 
-.block-name { display: flex; flex-direction: column; min-width: 120px; }
+.block-name { display: flex; flex-direction: column; min-width: 120px; cursor: grab; }
+.block-name:active { cursor: grabbing; }
 .block-display { font-weight: 600; }
 .block-logical { color: var(--text-muted); font-size: 11px; }
 

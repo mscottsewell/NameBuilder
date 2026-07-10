@@ -146,13 +146,9 @@ export function mountDesigner(root: HTMLElement, controller: Controller): void {
     return fragment(...chips);
   }
 
-  function renderBlockCard(field: FieldConfig, index: number): HTMLElement {
-    const expanded = state.expandedBlock === index;
-
-    const card = el('div', { class: `block-card${expanded ? ' expanded' : ''}` });
-    const orderBadge = el('span', {
-      class: 'block-order',
-      title: 'Drag to reorder',
+  /** Shared drag-handle behavior applied to both the order badge and the field name. */
+  function dragHandleAttrs(card: HTMLElement, index: number): Record<string, string | EventListener> {
+    return {
       draggable: 'true',
       ondragstart: ((e: DragEvent) => {
         e.dataTransfer?.setData(REORDER_DRAG_TYPE, String(index));
@@ -166,13 +162,28 @@ export function mountDesigner(root: HTMLElement, controller: Controller): void {
         card.classList.remove('dragging');
         hideDropIndicator();
       }) as EventListener,
+    };
+  }
+
+  function renderBlockCard(field: FieldConfig, index: number): HTMLElement {
+    const expanded = state.expandedBlock === index;
+
+    const card = el('div', { class: `block-card${expanded ? ' expanded' : ''}` });
+    const orderBadge = el('span', {
+      class: 'block-order',
+      title: 'Drag to reorder',
+      ...dragHandleAttrs(card, index),
     }, String(index + 1));
 
     const head = el(
       'div',
       { class: 'block-head', onclick: () => controller.toggleBlockEditor(index) },
       orderBadge,
-      el('div', { class: 'block-name' },
+      el('div', {
+        class: 'block-name',
+        title: 'Drag to reorder',
+        ...dragHandleAttrs(card, index),
+      },
         el('span', { class: 'block-display' }, displayNameFor(field.field)),
         el('span', { class: 'block-logical' }, `${field.field} · ${field.type ?? 'auto'}`)
       ),
