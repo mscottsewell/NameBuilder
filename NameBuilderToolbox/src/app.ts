@@ -89,14 +89,10 @@ function bootstrap(): void {
 }
 
 function brandIcon(): HTMLElement {
-  const wrapper = el('span', { class: 'app-logo', 'aria-hidden': 'true' });
-  wrapper.innerHTML =
-    '<svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26">' +
-    '<rect x="2" y="4" width="9" height="4" rx="1.2"/><rect x="13" y="4" width="9" height="4" rx="1.2" opacity="0.55"/>' +
-    '<rect x="2" y="10" width="6" height="4" rx="1.2" opacity="0.55"/><rect x="10" y="10" width="12" height="4" rx="1.2"/>' +
-    '<rect x="2" y="16" width="13" height="4" rx="1.2" opacity="0.8"/>' +
-    '<path d="M17.5 16.3l1.1 2.2 2.4.35-1.75 1.7.4 2.4-2.15-1.13-2.15 1.13.4-2.4-1.75-1.7 2.4-.35z" opacity="0.9"/></svg>';
-  return wrapper;
+  // Loaded from the same file as the PPTB manifest icon (icons/namebuilder.svg)
+  // rather than a duplicated inline copy, so the header logo and the tool
+  // library's icon can never drift out of sync.
+  return el('img', { class: 'app-logo', src: 'icons/namebuilder.svg', alt: '', width: '26', height: '26' });
 }
 
 if (document.readyState === 'loading') {
