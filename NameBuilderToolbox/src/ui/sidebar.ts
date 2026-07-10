@@ -50,9 +50,8 @@ export function mountSidebar(root: HTMLElement, controller: Controller): void {
       if (e.key === 'Escape') closeEntityDropdown();
     }) as EventListener,
   });
-  const entityCaret = el('span', { class: 'combo-caret', 'aria-hidden': 'true' }, '▾');
   const entityDropdown = el('div', { class: 'combo-dropdown' });
-  const entityCombo = el('div', { class: 'combo' }, entityInput, entityCaret, entityDropdown);
+  const entityCombo = el('div', { class: 'combo' }, entityInput, entityDropdown);
   let entityDropdownOpen = false;
 
   function openEntityDropdown(): void {

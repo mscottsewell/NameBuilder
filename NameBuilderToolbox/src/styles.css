@@ -19,6 +19,7 @@
   --radius: 8px;
   --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
   --mono: 'Cascadia Code', Consolas, monospace;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,6 +35,7 @@
     --accent-text: #10121a;
     --accent-soft: #2c3350;
     --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239aa1ad' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   }
 }
 
@@ -49,6 +51,7 @@
   --accent-text: #10121a;
   --accent-soft: #2c3350;
   --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239aa1ad' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 :root[data-theme='light'] {
@@ -63,6 +66,7 @@
   --accent-text: #ffffff;
   --accent-soft: #e6eafd;
   --shadow: 0 6px 24px rgba(15, 20, 40, 0.10);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 * { box-sizing: border-box; }
@@ -169,21 +173,7 @@ body {
 /* ---------- Combobox (table picker) ---------- */
 
 .combo { position: relative; }
-.input.combo-input {
-  padding-right: 28px;
-  cursor: pointer;
-  background: var(--bg-inset);
-}
 .combo-input::placeholder { color: var(--text-muted); }
-.combo-caret {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  color: var(--text-muted);
-  font-size: 11px;
-}
 .combo-dropdown {
   display: none;
   position: absolute;
@@ -215,6 +205,21 @@ body {
 }
 .input:focus, .select:focus, .json-area:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .input-small { width: 90px; }
+
+/* Native <select> arrows render inconsistently across browsers/OSes; render
+   the same chevron ourselves so the text-input-based table combobox below
+   is visually identical to every real <select> in the app. */
+.select, .input.combo-input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 28px;
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 10px 6px;
+}
+.input.combo-input { cursor: pointer; }
 
 .btn {
   padding: 6px 14px;
