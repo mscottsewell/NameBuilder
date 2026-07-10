@@ -14,6 +14,7 @@ import { mountDesigner } from './ui/designer';
 import { mountPropertiesPanel } from './ui/propertiesPanel';
 import { openPublishDialog } from './ui/publishDialog';
 import { openWelcomeDialog } from './ui/welcomeDialog';
+import { mountBusyOverlay } from './ui/busyOverlay';
 
 async function applyTheme(): Promise<void> {
   try {
@@ -72,6 +73,7 @@ function bootstrap(): void {
   mountSidebar(sidebar, controller);
   mountDesigner(designer, controller);
   mountPropertiesPanel(properties, controller);
+  mountBusyOverlay(controller);
 
   store.on('busy', () => {
     busyIndicator.textContent = store.state.busyMessage ?? '';

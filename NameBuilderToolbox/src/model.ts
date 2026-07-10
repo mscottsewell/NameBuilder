@@ -96,6 +96,8 @@ export interface SessionState {
   viewId?: string | null;
   /** Default solution (unique name) that publish registers components into. */
   publishSolution?: string | null;
+  /** True once the user has explicitly chosen a Plugin Solution; until then it follows the Table filter's solution. */
+  publishSolutionOverridden?: boolean;
 }
 
 /** Deep-clone a config (used for undo-safe edits and import). */

@@ -34,6 +34,8 @@ export interface AppState {
 
   /** Default solution (unique name) that publish registers components into (persisted per connection). */
   publishSolutionUniqueName: string | null;
+  /** True once the user has explicitly chosen a Plugin Solution; until then it follows the Table filter's solution. */
+  publishSolutionOverridden: boolean;
 
   config: NameBuilderConfig;
   /** Index of the block whose editor is expanded, or null. */
@@ -78,6 +80,7 @@ export class Store {
       selectedViewId: null,
       viewColumns: null,
       publishSolutionUniqueName: null,
+      publishSolutionOverridden: false,
       config: createEmptyConfig(),
       expandedBlock: null,
       fieldDefaults: defaultFieldDefaults(),

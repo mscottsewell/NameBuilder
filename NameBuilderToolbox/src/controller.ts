@@ -46,6 +46,7 @@ export class Controller {
   /** Resumes the solution filter, table, view, and configuration from a saved session. */
   private async restoreSession(session: SessionState): Promise<void> {
     this.state.publishSolutionUniqueName = session.publishSolution ?? null;
+    this.state.publishSolutionOverridden = session.publishSolutionOverridden ?? false;
     if (session.solutionId && this.state.solutions.some((s) => s.id === session.solutionId)) {
       await this.setSolutionFilter(session.solutionId, false);
     }
@@ -70,6 +71,7 @@ export class Controller {
       config: this.state.selectedEntity ? cloneConfig(this.state.config) : null,
       viewId: this.state.selectedViewId,
       publishSolution: this.state.publishSolutionUniqueName,
+      publishSolutionOverridden: this.state.publishSolutionOverridden,
     };
     saveSessionByConnection(this.state.sessionByConnection);
   }
@@ -200,9 +202,26 @@ export class Controller {
     if (persist) this.persistSession();
   }
 
+  /** Explicitly sets the Plugin Solution (Global Configuration), overriding the Table filter default. */
   setPublishSolution(uniqueName: string | null): void {
     this.state.publishSolutionUniqueName = uniqueName;
+    this.state.publishSolutionOverridden = true;
     this.persistSession();
+  }
+
+  /**
+   * The solution publish will register components into: the user's explicit
+   * choice once they've made one, otherwise the Table filter's solution
+   * (matching "default to the same selected solution, but allow it to be
+   * changed"). Returns null for "(Default solution)" / no filter.
+   */
+  getEffectivePublishSolution(): string | null {
+    if (this.state.publishSolutionOverridden) return this.state.publishSolutionUniqueName;
+    if (this.state.solutionFilterId) {
+      const solution = this.state.solutions.find((s) => s.id === this.state.solutionFilterId);
+      if (solution && !solution.isManaged) return solution.uniqueName;
+    }
+    return null;
   }
 
   /** Changes the target column the plugin writes to (Global Configuration). */

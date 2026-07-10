@@ -1,8 +1,9 @@
 /**
- * Left sidebar (full height): table combobox (searchable dropdown that
- * collapses once a table is chosen), view selector (scopes the column palette
- * and the record picker), sample-record picker, and the column palette for
- * the selected table (click a column to append it as a name block).
+ * Left sidebar (full height): solution filter, table combobox (searchable
+ * dropdown that collapses once a table is chosen), view selector (scopes the
+ * column palette and the record picker), sample-record picker, and the
+ * column palette for the selected table (click a column to append it as a
+ * name block).
  */
 
 import { clear, el } from './dom';
@@ -49,8 +50,9 @@ export function mountSidebar(root: HTMLElement, controller: Controller): void {
       if (e.key === 'Escape') closeEntityDropdown();
     }) as EventListener,
   });
+  const entityCaret = el('span', { class: 'combo-caret', 'aria-hidden': 'true' }, '▾');
   const entityDropdown = el('div', { class: 'combo-dropdown' });
-  const entityCombo = el('div', { class: 'combo' }, entityInput, entityDropdown);
+  const entityCombo = el('div', { class: 'combo' }, entityInput, entityCaret, entityDropdown);
   let entityDropdownOpen = false;
 
   function openEntityDropdown(): void {
@@ -125,15 +127,6 @@ export function mountSidebar(root: HTMLElement, controller: Controller): void {
   });
 
   // ----- Sample-record picker -----
-  const recordSearch = el('input', {
-    class: 'input',
-    type: 'search',
-    placeholder: 'Search records…',
-    oninput: () => {
-      state.recordSearch = recordSearch.value;
-      controller.searchSampleRecords();
-    },
-  });
   const recordSelect = el('select', {
     class: 'select',
     title: 'Record used by the live preview',
@@ -158,14 +151,13 @@ export function mountSidebar(root: HTMLElement, controller: Controller): void {
     el('div', { class: 'sidebar-heading' }, 'View'),
     viewSelect,
     el('div', { class: 'sidebar-heading' }, 'Preview record'),
-    recordSearch,
     recordSelect
   );
   viewSection.style.display = 'none';
 
   root.append(
     el('div', { class: 'sidebar-section' },
-      el('div', { class: 'sidebar-heading' }, 'Table'),
+      el('div', { class: 'sidebar-heading' }, 'Solution & Table'),
       solutionSelect,
       entityCombo
     ),
@@ -274,10 +266,7 @@ export function mountSidebar(root: HTMLElement, controller: Controller): void {
     renderRecords();
   });
   store.on('views', renderViews);
-  store.on('records', () => {
-    recordSearch.value = state.recordSearch;
-    renderRecords();
-  });
+  store.on('records', renderRecords);
   store.on('attributes', () => {
     attributeHeader.textContent = state.selectedEntity ? `Columns — ${state.selectedEntity.displayName}` : 'Columns';
     attributeSearch.value = state.attributeSearch;

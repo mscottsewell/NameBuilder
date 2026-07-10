@@ -67,13 +67,18 @@ export function mountPropertiesPanel(root: HTMLElement, controller: Controller):
     // ----- Global Configuration -----
     const solutionSelect = el('select', {
       class: 'select',
-      onchange: () => controller.setPublishSolution(solutionSelect.value || null),
+      onchange: () => {
+        controller.setPublishSolution(solutionSelect.value || null);
+        // Re-render: the "following the Table filter" hint must flip off now
+        // that the choice is explicit, and setPublishSolution emits no topic.
+        renderProperties();
+      },
     });
     solutionSelect.append(el('option', { value: '' }, '(Default solution)'));
     for (const solution of state.solutions.filter((s) => !s.isManaged)) {
       solutionSelect.append(el('option', { value: solution.uniqueName }, solution.friendlyName));
     }
-    solutionSelect.value = state.publishSolutionUniqueName ?? '';
+    solutionSelect.value = controller.getEffectivePublishSolution() ?? '';
 
     const targetField = el('input', {
       class: 'input',
@@ -127,9 +132,13 @@ export function mountPropertiesPanel(root: HTMLElement, controller: Controller):
     });
     timezoneOptions(defaultTimezone, defaults.timezoneOffsetHours);
 
+    const solutionHint = state.publishSolutionOverridden
+      ? 'Publish registers the plugin steps into this solution.'
+      : 'Publish registers the plugin steps into this solution. Following the Solution & Table filter — change here to override.';
+
     propertiesTab.append(
       el('h3', { class: 'panel-title' }, 'Global Configuration'),
-      labeled('Plugin Solution', solutionSelect, 'Publish registers the plugin steps into this solution.'),
+      labeled('Plugin Solution', solutionSelect, solutionHint),
       labeled('Target Field Name', targetField,
         isKnownColumn(state.config.targetField) ? undefined : 'Not found on this table — check the logical name.'),
       el('div', { class: 'field-row' },
