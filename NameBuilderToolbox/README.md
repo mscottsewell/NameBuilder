@@ -36,6 +36,8 @@ The configuration JSON is always visible and editable — **Apply**, **Copy**, *
 
 Step registration is identical: `SdkMessageProcessingStep` with **stage 20 (pre-operation), mode 0 (synchronous), rank 1**, unsecure configuration = the JSON, filtering attributes = all referenced columns, and a `PreImage` (alias `PreImage`, on `Target`) for the Update step whose attribute list is merged, never trimmed.
 
+**Known Dataverse quirk**: updating an existing `PreImage`'s attribute list in place sometimes fails with `0x80040216: An unexpected error occurred` — a server-side platform bug, not a data or permissions problem. The XrmToolBox configurator hit the same thing; both tools work around it the same way, by deleting and recreating the image with the merged attributes instead of updating it in place.
+
 ## Development
 
 ```bash

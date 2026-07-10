@@ -255,6 +255,22 @@ async function ensureStep(
  * attribute list contains every attribute the configuration references.
  * Existing image attributes are merged, never removed.
  */
+function createPreImageRecord(
+  stepId: string,
+  alias: string,
+  messageProperty: string,
+  attributesCsv: string
+): Promise<{ id: string } | string> {
+  return api().create('sdkmessageprocessingstepimage', {
+    name: alias,
+    entityalias: alias,
+    messagepropertyname: messageProperty,
+    imagetype: 0,
+    attributes: attributesCsv,
+    'sdkmessageprocessingstepid@odata.bind': `/sdkmessageprocessingsteps(${stepId})`,
+  });
+}
+
 async function ensurePreImage(stepId: string, attributes: string[], onProgress?: (message: string) => void): Promise<void> {
   if (attributes.length === 0) return;
   const dv = api();
@@ -269,14 +285,7 @@ async function ensurePreImage(stepId: string, attributes: string[], onProgress?:
 
   if (!image) {
     onProgress?.('Creating PreImage for the Update step…');
-    await dv.create('sdkmessageprocessingstepimage', {
-      name: 'PreImage',
-      entityalias: 'PreImage',
-      messagepropertyname: 'Target',
-      imagetype: 0,
-      attributes: required.sort().join(','),
-      'sdkmessageprocessingstepid@odata.bind': `/sdkmessageprocessingsteps(${stepId})`,
-    });
+    await createPreImageRecord(stepId, 'PreImage', 'Target', required.sort().join(','));
     return;
   }
 
@@ -284,12 +293,36 @@ async function ensurePreImage(stepId: string, attributes: string[], onProgress?:
   for (const token of String(image.attributes ?? '').split(',')) {
     if (token.trim()) union.add(token.trim().toLowerCase());
   }
+  const mergedAttributes = [...union].sort().join(',');
+  const alias = String(image.entityalias || 'PreImage');
+  const messageProperty = String(image.messagepropertyname || 'Target');
+  const imageId = String(image.sdkmessageprocessingstepimageid);
 
   onProgress?.('Updating PreImage attribute list…');
-  const update: Record<string, unknown> = { attributes: [...union].sort().join(',') };
-  if (!image.entityalias) update.entityalias = 'PreImage';
-  if (!image.messagepropertyname) update.messagepropertyname = 'Target';
-  await dv.update('sdkmessageprocessingstepimage', String(image.sdkmessageprocessingstepimageid), update);
+  const update: Record<string, unknown> = { attributes: mergedAttributes };
+  if (!image.entityalias) update.entityalias = alias;
+  if (!image.messagepropertyname) update.messagepropertyname = messageProperty;
+
+  try {
+    await dv.update('sdkmessageprocessingstepimage', imageId, update);
+  } catch (error) {
+    // Dataverse has a long-standing platform quirk: updating an existing
+    // step image's attribute list can throw a generic
+    // "0x80040216: An unexpected error occurred" fault (a server-side bug,
+    // not a data/permissions problem — the XrmToolBox configurator hit the
+    // same thing and works around it the same way). The reliable fix is to
+    // delete the image and recreate it with the merged attribute list
+    // instead of updating it in place.
+    onProgress?.('PreImage update was rejected by the server — recreating it instead…');
+    try {
+      await dv.delete('sdkmessageprocessingstepimage', imageId);
+      await createPreImageRecord(stepId, alias, messageProperty, mergedAttributes);
+    } catch (recreateError) {
+      throw new Error(
+        `Updating the PreImage failed (${(error as Error).message}), and recreating it also failed: ${(recreateError as Error).message}`
+      );
+    }
+  }
 }
 
 async function addToSolution(
