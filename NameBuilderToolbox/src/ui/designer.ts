@@ -8,7 +8,7 @@ import { clear, el, fragment } from './dom';
 import type { Controller } from '../controller';
 import type { FieldCondition, FieldConfig, FieldType } from '../model';
 import { CONDITION_OPERATORS } from '../model';
-import { openDefaultsDialog } from './defaultsDialog';
+import { mountLivePreview } from './preview';
 
 const FIELD_TYPES: FieldType[] = ['string', 'lookup', 'date', 'number', 'currency', 'optionset'];
 
@@ -22,10 +22,12 @@ export function mountDesigner(root: HTMLElement, controller: Controller): void {
   const { store } = controller;
   const state = store.state;
 
+  const previewHost = el('div', { class: 'designer-preview' });
   const header = el('div', { class: 'designer-header' });
   const blockList = el('div', { class: 'block-list' });
 
-  root.append(header, blockList);
+  root.append(previewHost, header, blockList);
+  mountLivePreview(previewHost, controller);
 
   function displayNameFor(logicalName: string): string {
     return state.attributes.get(logicalName.toLowerCase())?.displayName ?? logicalName;
@@ -35,43 +37,13 @@ export function mountDesigner(root: HTMLElement, controller: Controller): void {
     clear(header);
     if (!state.selectedEntity) return;
 
-    const maxLength = el('input', {
-      class: 'input input-small',
-      type: 'number',
-      min: '4',
-      value: state.config.maxLength !== undefined ? String(state.config.maxLength) : '',
-      placeholder: 'auto',
-      title: 'Maximum length of the generated name (defaults to the target column length)',
-      oninput: () => {
-        const parsed = parseInt(maxLength.value, 10);
-        state.config.maxLength = Number.isNaN(parsed) ? undefined : parsed;
-        controller.configTouched();
-      },
-    });
-
-    const tracing = el('input', {
-      type: 'checkbox',
-      onchange: () => {
-        state.config.enableTracing = tracing.checked ? true : undefined;
-        controller.configTouched();
-      },
-    }) as HTMLInputElement;
-    tracing.checked = state.config.enableTracing === true;
-
     header.append(
       el('div', { class: 'designer-title' },
         el('h2', {}, 'Name pattern'),
-        el('span', { class: 'target-chip', title: 'The column the plugin will populate' },
+        el('span', { class: 'target-chip', title: 'The column the plugin will populate (change it in Properties)' },
           `→ ${displayNameFor(state.config.targetField)} (${state.config.targetField})`)
       ),
       el('div', { class: 'designer-settings' },
-        el('label', { class: 'inline-label' }, 'Max length ', maxLength),
-        el('label', { class: 'inline-label' }, tracing, ' Plugin tracing'),
-        el('button', {
-          class: 'btn btn-ghost btn-small',
-          title: 'Reusable prefix/suffix/format defaults for new blocks',
-          onclick: () => openDefaultsDialog(controller),
-        }, 'Field defaults…'),
         !state.service.isDemo
           ? el('button', {
               class: 'btn btn-ghost btn-small',

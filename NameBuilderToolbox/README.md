@@ -6,7 +6,7 @@ This is the Power Platform ToolBox (PPTB) edition of the NameBuilder Configurato
 
 ## What it does
 
-1. **Pick a table** (optionally filtered by solution).
+1. **Pick a table** (searchable dropdown, optionally filtered by solution), and optionally a **view** — the view scopes both the column palette and the preview-record picker.
 2. **Click columns** to add them as name blocks — text, lookups, dates, numbers, currency, and choice columns are supported.
 3. **Configure each block**: prefix/suffix separators, date formats (with `upper:` / `lower:` / `title:` casing transforms and timezone offsets), number/currency formats with K/M/B scaling, default values, per-block truncation, alternate-column fallback chains, and conditional inclusion (`equals`, `contains`, `in`, numeric comparisons, empty checks, with ANY/ALL grouping).
 4. **Watch the live preview** update against a real record from your environment, block by block.
@@ -29,7 +29,7 @@ The configuration JSON is always visible and editable — **Apply**, **Copy**, *
 | Bundled `NameBuilder.dll` on disk | Same DLL embedded (base64) in the bundle |
 | Reflection over the DLL to find plugin types | Known type `NameBuilder.NameBuilderPlugin` registered directly |
 | `RetrieveEntityRequest` / attribute metadata | `EntityDefinitions` OData metadata queries (with graceful degradation) |
-| View + sample-record picker dialogs | Recent-records picker with search |
+| View + sample-record picker dialogs | View selector (scopes the column palette and record picker) |
 | Modal dialogs for conditions/alternates | Inline expanding block editors |
 | Auto-load published step config on entity select | Same (via `getPublishedConfig`), with a manual **Reload deployed** button |
 | Default field properties + propagation, saved to `%APPDATA%` | **Field defaults…** dialog, saved via `toolboxAPI.settings` |

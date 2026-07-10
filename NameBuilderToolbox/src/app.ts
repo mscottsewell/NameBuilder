@@ -11,7 +11,7 @@ import { PptbDataService } from './dataverse';
 import { DemoDataService } from './demo';
 import { mountSidebar } from './ui/sidebar';
 import { mountDesigner } from './ui/designer';
-import { mountPreview } from './ui/preview';
+import { mountPropertiesPanel } from './ui/propertiesPanel';
 import { openPublishDialog } from './ui/publishDialog';
 import { openWelcomeDialog } from './ui/welcomeDialog';
 
@@ -65,13 +65,13 @@ function bootstrap(): void {
 
   const sidebar = el('aside', { class: 'app-sidebar' });
   const designer = el('main', { class: 'app-designer' });
-  const preview = el('section', { class: 'app-preview' });
+  const properties = el('section', { class: 'app-properties' });
 
-  document.body.append(header, el('div', { class: 'app-body' }, sidebar, designer, preview));
+  document.body.append(header, el('div', { class: 'app-body' }, sidebar, designer, properties));
 
   mountSidebar(sidebar, controller);
   mountDesigner(designer, controller);
-  mountPreview(preview, controller);
+  mountPropertiesPanel(properties, controller);
 
   store.on('busy', () => {
     busyIndicator.textContent = store.state.busyMessage ?? '';

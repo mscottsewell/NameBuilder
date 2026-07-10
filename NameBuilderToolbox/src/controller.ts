@@ -43,20 +43,24 @@ export class Controller {
     return true;
   }
 
-  /** Resumes the solution filter, table, and configuration from a saved session. */
+  /** Resumes the solution filter, table, view, and configuration from a saved session. */
   private async restoreSession(session: SessionState): Promise<void> {
+    this.state.publishSolutionUniqueName = session.publishSolution ?? null;
     if (session.solutionId && this.state.solutions.some((s) => s.id === session.solutionId)) {
       await this.setSolutionFilter(session.solutionId, false);
     }
     if (session.entityLogicalName) {
       const entity = this.state.entities.find((e) => e.logicalName === session.entityLogicalName);
       if (entity) {
-        await this.selectEntity(entity, { restoreConfig: session.config ?? undefined });
+        await this.selectEntity(entity, {
+          restoreConfig: session.config ?? undefined,
+          restoreViewId: session.viewId ?? undefined,
+        });
       }
     }
   }
 
-  /** Persists the current solution/table/configuration for the active connection. */
+  /** Persists the current solution/table/view/configuration for the active connection. */
   private persistSession(): void {
     const connection = this.state.connectionName;
     if (!connection) return;
@@ -64,6 +68,8 @@ export class Controller {
       solutionId: this.state.solutionFilterId,
       entityLogicalName: this.state.selectedEntity?.logicalName ?? null,
       config: this.state.selectedEntity ? cloneConfig(this.state.config) : null,
+      viewId: this.state.selectedViewId,
+      publishSolution: this.state.publishSolutionUniqueName,
     };
     saveSessionByConnection(this.state.sessionByConnection);
   }
@@ -116,15 +122,19 @@ export class Controller {
   }
 
   /**
-   * Selects a table and loads its columns. When `restoreConfig` is supplied
-   * (resuming a saved session) it is used verbatim and auto-load-published /
-   * inferred-maxLength are skipped, since it may contain unpublished edits.
+   * Selects a table and loads its columns and views. When `restoreConfig` is
+   * supplied (resuming a saved session) it is used verbatim and
+   * auto-load-published / inferred-maxLength are skipped, since it may
+   * contain unpublished edits.
    */
-  async selectEntity(entity: EntityInfo, options?: { restoreConfig?: NameBuilderConfig }): Promise<void> {
+  async selectEntity(entity: EntityInfo, options?: { restoreConfig?: NameBuilderConfig; restoreViewId?: string }): Promise<void> {
     if (this.state.selectedEntity?.logicalName === entity.logicalName && !options?.restoreConfig) return;
     this.state.selectedEntity = entity;
     this.state.attributes = new Map();
     this.state.attributeSearch = '';
+    this.state.views = [];
+    this.state.selectedViewId = null;
+    this.state.viewColumns = null;
     if (options?.restoreConfig) {
       this.state.config = cloneConfig(options.restoreConfig);
       this.state.config.entity = entity.logicalName;
@@ -139,7 +149,7 @@ export class Controller {
     this.state.selectedRecordId = null;
     this.state.recordView = {};
     this.state.currencySymbol = '';
-    this.store.emit('entity', 'attributes', 'config', 'records', 'preview');
+    this.store.emit('entity', 'attributes', 'views', 'config', 'records', 'preview');
 
     this.store.setBusy(`Loading ${entity.displayName} columns…`);
     try {
@@ -154,13 +164,51 @@ export class Controller {
         }
       }
       this.store.emit('attributes', 'config');
-      await this.loadSampleRecords();
+
+      try {
+        this.state.views = await this.state.service.listViews(entity);
+      } catch {
+        this.state.views = [];
+      }
+      this.store.emit('views');
+      if (options?.restoreViewId && this.state.views.some((v) => v.id === options.restoreViewId)) {
+        await this.selectView(options.restoreViewId, false);
+      } else {
+        await this.loadSampleRecords();
+      }
     } catch (error) {
       toast(this.state.service, 'error', 'Failed to load columns', (error as Error).message);
     } finally {
       this.store.setBusy(null);
       this.persistSession();
     }
+  }
+
+  /**
+   * Applies a view: its columns scope the attribute palette, and its FetchXML
+   * drives the sample-record picker. Passing null clears both back to
+   * all-columns / recent records.
+   */
+  async selectView(viewId: string | null, persist = true): Promise<void> {
+    const view = viewId ? this.state.views.find((v) => v.id === viewId) ?? null : null;
+    this.state.selectedViewId = view?.id ?? null;
+    this.state.viewColumns = view && view.columns.length > 0 ? new Set(view.columns) : null;
+    this.state.selectedRecordId = null;
+    this.state.recordSearch = '';
+    this.store.emit('views', 'attributes');
+    await this.loadSampleRecords();
+    if (persist) this.persistSession();
+  }
+
+  setPublishSolution(uniqueName: string | null): void {
+    this.state.publishSolutionUniqueName = uniqueName;
+    this.persistSession();
+  }
+
+  /** Changes the target column the plugin writes to (Global Configuration). */
+  setTargetField(logicalName: string): void {
+    this.state.config.targetField = logicalName.trim() || (this.state.selectedEntity?.primaryNameAttribute ?? 'name');
+    this.configTouched();
   }
 
   /**
@@ -212,7 +260,18 @@ export class Controller {
     const entity = this.state.selectedEntity;
     if (!entity) return;
     try {
-      this.state.sampleRecords = await this.state.service.getSampleRecords(entity, this.state.recordSearch, []);
+      const view = this.state.selectedViewId
+        ? this.state.views.find((v) => v.id === this.state.selectedViewId) ?? null
+        : null;
+      if (view) {
+        // View records are pre-fetched by the view's FetchXML; search filters client-side.
+        let records = await this.state.service.getViewRecords(entity, view);
+        const term = this.state.recordSearch.trim().toLowerCase();
+        if (term) records = records.filter((r) => r.label.toLowerCase().includes(term));
+        this.state.sampleRecords = records;
+      } else {
+        this.state.sampleRecords = await this.state.service.getSampleRecords(entity, this.state.recordSearch, []);
+      }
       if (!this.state.selectedRecordId && this.state.sampleRecords.length > 0) {
         this.state.selectedRecordId = this.state.sampleRecords[0].id;
       }

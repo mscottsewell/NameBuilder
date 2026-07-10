@@ -132,13 +132,14 @@ body {
 .app-body {
   display: grid;
   grid-template-columns: 280px minmax(360px, 1fr) 340px;
+  grid-template-rows: minmax(0, 1fr);
   gap: 12px;
   padding: 12px;
   flex: 1 1 auto;
   min-height: 0;
 }
 
-.app-sidebar, .app-designer, .app-preview {
+.app-sidebar, .app-designer, .app-properties {
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -150,10 +151,40 @@ body {
   gap: 8px;
 }
 
-@media (max-width: 980px) {
-  .app-body { grid-template-columns: 240px 1fr; }
-  .app-preview { grid-column: 1 / -1; }
+/* The sidebar always spans the full height of the layout; at narrow widths
+   the properties panel stacks under the designer, never under the sidebar. */
+.app-sidebar { grid-row: 1 / -1; }
+
+@media (max-width: 1080px) {
+  .app-body {
+    grid-template-columns: 250px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
+  }
+  .app-designer { grid-column: 2; grid-row: 1; }
+  .app-properties { grid-column: 2; grid-row: 2; }
 }
+
+.sidebar-section { display: flex; flex-direction: column; gap: 6px; }
+
+/* ---------- Combobox (table picker) ---------- */
+
+.combo { position: relative; }
+.combo-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  z-index: 50;
+  padding: 4px;
+}
+.combo-dropdown.open { display: flex; flex-direction: column; gap: 2px; }
 
 /* ---------- Controls ---------- */
 
@@ -378,7 +409,54 @@ body {
 .placeholder h3 { margin: 4px 0; color: var(--text); }
 .placeholder p { max-width: 420px; margin: 6px auto; }
 
-/* ---------- Preview panel ---------- */
+/* ---------- Live preview strip (top of designer) ---------- */
+
+.designer-preview { flex: 0 0 auto; }
+.live-preview-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.preview-parts-row { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+.preview-parts-row .preview-part { flex: 0 1 auto; }
+
+/* ---------- Properties / JSON tabs ---------- */
+
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.tab {
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  background: var(--bg-inset);
+  border-color: var(--border);
+  color: var(--text);
+  font-weight: 600;
+}
+.tab-content { display: flex; flex-direction: column; gap: 10px; min-height: 0; flex: 1 1 auto; overflow-y: auto; }
+
+.panel-title { margin: 4px 0 2px; font-size: 14px; }
+.section-gap { margin-top: 14px; }
+.field-row { display: flex; gap: 14px; align-items: end; }
+.tracing-check { padding-bottom: 8px; }
+.input-warning { outline: 2px solid var(--warning); outline-offset: -1px; }
+
+/* ---------- Panel sections ---------- */
 
 .panel-section { display: flex; flex-direction: column; gap: 8px; }
 .json-section { flex: 1 1 auto; min-height: 0; }

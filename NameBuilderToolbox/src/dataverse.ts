@@ -31,6 +31,15 @@ export interface SampleRecord {
   raw: Record<string, unknown>;
 }
 
+export interface ViewInfo {
+  id: string;
+  name: string;
+  fetchXml: string;
+  /** Column logical names shown by the view (linked-entity columns excluded). */
+  columns: string[];
+  isPersonal: boolean;
+}
+
 export interface DataService {
   readonly isDemo: boolean;
   getConnectionName(): Promise<string>;
@@ -39,7 +48,11 @@ export interface DataService {
   getSolutionEntityIds(solutionId: string): Promise<Set<string>>;
   listEntities(): Promise<EntityInfo[]>;
   getAttributes(entity: EntityInfo): Promise<Map<string, AttributeInfo>>;
+  /** System and personal views for a table (system first). */
+  listViews(entity: EntityInfo): Promise<ViewInfo[]>;
   getSampleRecords(entity: EntityInfo, search: string, columns: string[]): Promise<SampleRecord[]>;
+  /** Records returned by a view's own FetchXML (filters/sorts honored). */
+  getViewRecords(entity: EntityInfo, view: ViewInfo): Promise<SampleRecord[]>;
   getRecordView(entity: EntityInfo, recordId: string, attributes: Map<string, AttributeInfo>, wanted: string[]): Promise<{ view: RecordView; currencySymbol: string }>;
   /** Configuration JSON already deployed for this entity, or null if none. */
   getPublishedConfig(entity: EntityInfo): Promise<string | null>;
@@ -69,6 +82,78 @@ function label(value: unknown): string {
 /** Builds the $select column for an attribute (lookups use _x_value). */
 export function selectColumnFor(logicalName: string, attr: AttributeInfo | undefined): string {
   return attr?.fieldType === 'lookup' ? `_${logicalName}_value` : logicalName;
+}
+
+/**
+ * Extracts a ViewInfo from a savedquery/userquery row. Column names come from
+ * the layoutxml grid cells (what the view displays), falling back to fetchxml
+ * attribute elements; linked-entity columns (dotted aliases) are excluded.
+ */
+function buildViewInfo(id: string, row: Record<string, unknown>, isPersonal: boolean): ViewInfo | null {
+  const fetchXml = typeof row.fetchxml === 'string' ? row.fetchxml : '';
+  if (!fetchXml) return null;
+
+  const columns = new Set<string>();
+  const layoutXml = typeof row.layoutxml === 'string' ? row.layoutxml : '';
+  try {
+    if (layoutXml) {
+      const doc = new DOMParser().parseFromString(layoutXml, 'application/xml');
+      doc.querySelectorAll('cell[name]').forEach((cell) => {
+        const name = cell.getAttribute('name');
+        if (name && !name.includes('.')) columns.add(name.toLowerCase());
+      });
+    }
+    if (columns.size === 0) {
+      const doc = new DOMParser().parseFromString(fetchXml, 'application/xml');
+      doc.querySelectorAll('entity > attribute[name]').forEach((attr) => {
+        const name = attr.getAttribute('name');
+        if (name) columns.add(name.toLowerCase());
+      });
+    }
+  } catch {
+    /* unparseable layout — view still usable for records, with no column filter */
+  }
+
+  return {
+    id,
+    name: String(row.name ?? '(unnamed view)'),
+    fetchXml,
+    columns: [...columns],
+    isPersonal,
+  };
+}
+
+/**
+ * Prepares a view's FetchXML for the sample-record picker: caps the result
+ * set and guarantees the primary name column is present. Paging attributes
+ * are removed since `top` cannot combine with them.
+ */
+function prepareViewFetchXml(fetchXml: string, primaryNameAttribute: string): string {
+  try {
+    const doc = new DOMParser().parseFromString(fetchXml, 'application/xml');
+    const fetchEl = doc.querySelector('fetch');
+    const entityEl = doc.querySelector('fetch > entity');
+    if (!fetchEl || !entityEl) return fetchXml;
+
+    fetchEl.removeAttribute('count');
+    fetchEl.removeAttribute('page');
+    fetchEl.removeAttribute('paging-cookie');
+    fetchEl.setAttribute('top', '50');
+
+    const hasAllAttributes = !!entityEl.querySelector(':scope > all-attributes');
+    const hasPrimaryName = [...entityEl.querySelectorAll(':scope > attribute')].some(
+      (a) => a.getAttribute('name') === primaryNameAttribute
+    );
+    if (!hasAllAttributes && !hasPrimaryName) {
+      const attr = doc.createElement('attribute');
+      attr.setAttribute('name', primaryNameAttribute);
+      entityEl.insertBefore(attr, entityEl.firstChild);
+    }
+
+    return new XMLSerializer().serializeToString(doc);
+  } catch {
+    return fetchXml;
+  }
 }
 
 export class PptbDataService implements DataService {
@@ -216,6 +301,48 @@ export class PptbDataService implements DataService {
     } catch {
       /* lookup name resolution falls back to formatted values */
     }
+  }
+
+  async listViews(entity: EntityInfo): Promise<ViewInfo[]> {
+    const views: ViewInfo[] = [];
+    try {
+      const system = await api().queryData(
+        `savedqueries?$select=savedqueryid,name,fetchxml,layoutxml` +
+          `&$filter=returnedtypecode eq '${entity.logicalName}' and querytype eq 0 and statecode eq 0&$orderby=name`
+      );
+      for (const row of system.value ?? []) {
+        const view = buildViewInfo(String(row.savedqueryid), row, false);
+        if (view) views.push(view);
+      }
+    } catch {
+      /* views are an enhancement; the palette falls back to all columns */
+    }
+    try {
+      const personal = await api().queryData(
+        `userqueries?$select=userqueryid,name,fetchxml,layoutxml` +
+          `&$filter=returnedtypecode eq '${entity.logicalName}'&$orderby=name`
+      );
+      for (const row of personal.value ?? []) {
+        const view = buildViewInfo(String(row.userqueryid), row, true);
+        if (view) views.push(view);
+      }
+    } catch {
+      /* personal views may be unreadable; system views still work */
+    }
+    return views;
+  }
+
+  async getViewRecords(entity: EntityInfo, view: ViewInfo): Promise<SampleRecord[]> {
+    const fetchXml = prepareViewFetchXml(view.fetchXml, entity.primaryNameAttribute);
+    const result = await api().fetchXmlQuery(fetchXml);
+    const rows = (result.entities ?? result.value ?? []) as Record<string, unknown>[];
+    return rows
+      .filter((raw) => raw[entity.primaryIdAttribute] !== undefined)
+      .map((raw) => ({
+        id: String(raw[entity.primaryIdAttribute]),
+        label: String(raw[entity.primaryNameAttribute] ?? '(no name)'),
+        raw,
+      }));
   }
 
   async getSampleRecords(entity: EntityInfo, search: string, columns: string[]): Promise<SampleRecord[]> {

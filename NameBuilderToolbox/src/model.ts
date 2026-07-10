@@ -92,6 +92,10 @@ export interface SessionState {
   entityLogicalName: string | null;
   /** In-progress configuration at the time of the last save — may include unpublished edits. */
   config: NameBuilderConfig | null;
+  /** Selected view (savedquery/userquery id) used for the attribute filter and record picker. */
+  viewId?: string | null;
+  /** Default solution (unique name) that publish registers components into. */
+  publishSolution?: string | null;
 }
 
 /** Deep-clone a config (used for undo-safe edits and import). */

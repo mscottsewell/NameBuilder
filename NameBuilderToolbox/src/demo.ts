@@ -5,7 +5,7 @@
  */
 
 import type { AttributeInfo, RecordView } from './engine';
-import type { DataService, EntityInfo, SampleRecord, SolutionInfo } from './dataverse';
+import type { DataService, EntityInfo, SampleRecord, SolutionInfo, ViewInfo } from './dataverse';
 import { mapAttributeType } from './engine';
 import { selectColumnFor } from './dataverse';
 
@@ -138,6 +138,24 @@ export class DemoDataService implements DataService {
       });
     }
     return map;
+  }
+
+  async listViews(entity: EntityInfo): Promise<ViewInfo[]> {
+    if (entity.logicalName === 'incident') {
+      return [
+        { id: 'demo-view-1', name: 'Active Cases', fetchXml: '<fetch/>', columns: ['title', 'ticketnumber', 'customerid', 'prioritycode'], isPersonal: false },
+        { id: 'demo-view-2', name: 'My Cases (personal)', fetchXml: '<fetch/>', columns: ['title', 'createdon', 'ownerid'], isPersonal: true },
+      ];
+    }
+    return [
+      { id: 'demo-view-3', name: 'Open Opportunities', fetchXml: '<fetch/>', columns: ['name', 'customerid', 'estimatedvalue', 'closeprobability'], isPersonal: false },
+    ];
+  }
+
+  async getViewRecords(entity: EntityInfo, view: ViewInfo): Promise<SampleRecord[]> {
+    // Demo views don't filter rows — they exercise the column filter + picker UI.
+    void view;
+    return this.getSampleRecords(entity, '');
   }
 
   async getSampleRecords(entity: EntityInfo, search: string): Promise<SampleRecord[]> {

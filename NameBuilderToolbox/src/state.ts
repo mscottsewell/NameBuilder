@@ -5,11 +5,11 @@
  */
 
 import type { AttributeInfo, RecordView } from './engine';
-import type { DataService, EntityInfo, SampleRecord, SolutionInfo } from './dataverse';
+import type { DataService, EntityInfo, SampleRecord, SolutionInfo, ViewInfo } from './dataverse';
 import type { FieldDefaults, NameBuilderConfig, SessionState } from './model';
 import { createEmptyConfig, defaultFieldDefaults } from './model';
 
-export type Topic = 'entities' | 'entity' | 'attributes' | 'config' | 'records' | 'preview' | 'busy';
+export type Topic = 'entities' | 'entity' | 'attributes' | 'views' | 'config' | 'records' | 'preview' | 'busy';
 
 export interface AppState {
   service: DataService;
@@ -25,6 +25,15 @@ export interface AppState {
   selectedEntity: EntityInfo | null;
   attributes: Map<string, AttributeInfo>;
   attributeSearch: string;
+
+  /** Views for the selected table; the chosen view scopes the column palette and record picker. */
+  views: ViewInfo[];
+  selectedViewId: string | null;
+  /** Lowercased column names of the selected view, or null (no view = all columns). */
+  viewColumns: Set<string> | null;
+
+  /** Default solution (unique name) that publish registers components into (persisted per connection). */
+  publishSolutionUniqueName: string | null;
 
   config: NameBuilderConfig;
   /** Index of the block whose editor is expanded, or null. */
@@ -65,6 +74,10 @@ export class Store {
       selectedEntity: null,
       attributes: new Map(),
       attributeSearch: '',
+      views: [],
+      selectedViewId: null,
+      viewColumns: null,
+      publishSolutionUniqueName: null,
       config: createEmptyConfig(),
       expandedBlock: null,
       fieldDefaults: defaultFieldDefaults(),

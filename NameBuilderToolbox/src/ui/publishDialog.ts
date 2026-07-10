@@ -35,7 +35,11 @@ export function openPublishDialog(controller: Controller): void {
   for (const solution of state.solutions.filter((s) => !s.isManaged)) {
     solutionSelect.append(el('option', { value: solution.uniqueName }, solution.friendlyName));
   }
-  if (state.solutionFilterId) {
+  // Preselect the Plugin Solution from Global Configuration (falls back to
+  // the sidebar's solution filter for older sessions).
+  if (state.publishSolutionUniqueName) {
+    solutionSelect.value = state.publishSolutionUniqueName;
+  } else if (state.solutionFilterId) {
     const filtered = state.solutions.find((s) => s.id === state.solutionFilterId);
     if (filtered && !filtered.isManaged) solutionSelect.value = filtered.uniqueName;
   }
