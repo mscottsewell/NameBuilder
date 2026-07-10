@@ -17,10 +17,6 @@
     "readmeUrl": "https://raw.githubusercontent.com/mscottsewell/NameBuilder/main/NameBuilderToolbox/README.md",
     "website": "https://github.com/mscottsewell/NameBuilder"
   },
-  "features": {
-    "multiConnection": "optional",
-    "minAPI": "1.0.0"
-  },
   "keywords": [
     "dataverse",
     "power-platform",

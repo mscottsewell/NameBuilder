@@ -77,7 +77,9 @@ The publish dialog compares the server's installed assembly version to the embed
 6. Install from npm in PPTB's Debug menu and smoke-test the published package before submitting.
 7. Submit/refresh via the [Tool Submission Form](https://www.powerplatformtoolbox.com/submit-tool) (package name + up to 3 category tags). Automated + manual review typically takes 48–72 hours.
 
-The `package.json` doubles as the PPTB tool manifest (`displayName`, `icon`, `main`, `configurations`, `features`). A package-local [LICENSE](LICENSE) file is required alongside the root repo license, since npm only packages files inside this directory.
+The `package.json` doubles as the PPTB tool manifest (`displayName`, `icon`, `main`, `configurations`). A package-local [LICENSE](LICENSE) file is required alongside the root repo license, since npm only packages files inside this directory.
+
+The manifest intentionally omits `features` — NameBuilder always operates against a single Dataverse connection and never uses a secondary one, so per the manifest docs ("omit this section entirely if neither field applies") there's nothing to declare.
 
 ## Project layout
 
