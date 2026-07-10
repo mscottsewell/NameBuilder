@@ -6,7 +6,7 @@
 
 import type { AttributeInfo, RecordView } from './engine';
 import type { DataService, EntityInfo, SampleRecord, SolutionInfo } from './dataverse';
-import type { FieldDefaults, NameBuilderConfig } from './model';
+import type { FieldDefaults, NameBuilderConfig, SessionState } from './model';
 import { createEmptyConfig, defaultFieldDefaults } from './model';
 
 export type Topic = 'entities' | 'entity' | 'attributes' | 'config' | 'records' | 'preview' | 'busy';
@@ -34,8 +34,8 @@ export interface AppState {
   fieldDefaults: FieldDefaults;
   /** Auto-load a deployed configuration when an entity is selected (persisted). */
   autoLoadPublished: boolean;
-  /** Last solution filter per connection (persisted). */
-  solutionByConnection: Record<string, string>;
+  /** Last solution/table/configuration per connection (persisted). */
+  sessionByConnection: Record<string, SessionState>;
 
   sampleRecords: SampleRecord[];
   recordSearch: string;
@@ -69,7 +69,7 @@ export class Store {
       expandedBlock: null,
       fieldDefaults: defaultFieldDefaults(),
       autoLoadPublished: true,
-      solutionByConnection: {},
+      sessionByConnection: {},
       sampleRecords: [],
       recordSearch: '',
       selectedRecordId: null,
@@ -82,6 +82,11 @@ export class Store {
   on(topic: Topic, listener: Listener): void {
     if (!this.listeners.has(topic)) this.listeners.set(topic, new Set());
     this.listeners.get(topic)!.add(listener);
+  }
+
+  /** Removes a listener previously registered with {@link on}. */
+  off(topic: Topic, listener: Listener): void {
+    this.listeners.get(topic)?.delete(listener);
   }
 
   emit(...topics: Topic[]): void {

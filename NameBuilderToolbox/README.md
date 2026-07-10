@@ -14,11 +14,12 @@ This is the Power Platform ToolBox (PPTB) edition of the NameBuilder Configurato
 
 The configuration JSON is always visible and editable — **Apply**, **Copy**, **Import…**, and **Export** keep it interchangeable with hand-written configs and with the XrmToolBox configurator.
 
-### Round-trip, defaults, and persistence
+### Round-trip, defaults, and session persistence
 
 - **Load a deployed configuration** — selecting a table auto-loads the configuration already registered for it (prefers the Update step, falls back to Create), so you can edit what's live instead of starting blank. Use **Reload deployed** in the designer header to pull it again on demand. Auto-load can be turned off in **Field defaults…**.
 - **Reusable field defaults** — **Field defaults…** sets a default separator (prefix), suffix, date format, number format, and timezone offset. New blocks inherit them, and changing a default propagates to existing blocks that still use the previous value (the first block never gets a leading separator). "Apply defaults to all existing blocks" forces them onto every block.
-- **Persisted preferences** — field defaults, the auto-load toggle, and your per-connection solution filter are saved via the ToolBox per-tool settings store (`toolboxAPI.settings`), with a `localStorage` fallback so they also persist in demo mode.
+- **First-time setup, and resuming where you left off** — the very first time the tool opens against a given connection (no prior session recorded for it), a **Welcome** modal prompts you to pick a solution and a table to begin. On every later load against that same connection, the tool silently restores the last solution filter, table, and in-progress configuration — including any edits that hadn't been published yet — with no prompt. This is tracked per connection, so switching environments always resumes (or starts) independently.
+- **Persisted preferences** — field defaults, the auto-load toggle, and per-connection session state (solution/table/configuration) are saved via the ToolBox per-tool settings store (`toolboxAPI.settings`), with a `localStorage` fallback so they also persist in demo mode.
 
 ## How it maps to the XrmToolBox configurator
 
@@ -94,7 +95,7 @@ NameBuilderToolbox/
     ├── controller.ts           # orchestration between panels, model, and data layer
     ├── state.ts                # topic-based store
     ├── generated/plugin-assembly.ts  # embedded NameBuilder.dll (auto-generated)
-    └── ui/                     # sidebar, designer, preview, publish dialog, toasts
+    └── ui/                     # sidebar, designer, preview, welcome/publish/defaults dialogs, toasts
 ```
 
 ## Documentation

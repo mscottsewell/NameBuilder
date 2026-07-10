@@ -7,20 +7,20 @@
  * JSON-serializable and scoped to this tool.
  */
 
-import type { FieldDefaults } from './model';
+import type { FieldDefaults, SessionState } from './model';
 import { defaultFieldDefaults } from './model';
 
 export interface Preferences {
   fieldDefaults: FieldDefaults;
   autoLoadPublished: boolean;
-  /** Last solution filter chosen, keyed by connection name. */
-  solutionByConnection: Record<string, string>;
+  /** Last solution/table/configuration worked on, keyed by connection name. */
+  sessionByConnection: Record<string, SessionState>;
 }
 
 const LS_PREFIX = 'namebuilder:';
 const KEY_DEFAULTS = 'fieldDefaults';
 const KEY_AUTOLOAD = 'autoLoadPublished';
-const KEY_SOLUTIONS = 'solutionByConnection';
+const KEY_SESSIONS = 'sessionByConnection';
 
 function store(): NonNullable<PptbToolboxAPI['settings']> | null {
   return window.toolboxAPI?.settings ?? null;
@@ -62,16 +62,16 @@ async function rawSet(key: string, value: unknown): Promise<void> {
 }
 
 export async function loadPreferences(): Promise<Preferences> {
-  const [defaults, autoLoad, solutions] = await Promise.all([
+  const [defaults, autoLoad, sessions] = await Promise.all([
     rawGet<Partial<FieldDefaults>>(KEY_DEFAULTS),
     rawGet<boolean>(KEY_AUTOLOAD),
-    rawGet<Record<string, string>>(KEY_SOLUTIONS),
+    rawGet<Record<string, SessionState>>(KEY_SESSIONS),
   ]);
 
   return {
     fieldDefaults: { ...defaultFieldDefaults(), ...(defaults ?? {}) },
     autoLoadPublished: autoLoad ?? true,
-    solutionByConnection: solutions ?? {},
+    sessionByConnection: sessions ?? {},
   };
 }
 
@@ -83,6 +83,6 @@ export function saveAutoLoadPublished(value: boolean): void {
   void rawSet(KEY_AUTOLOAD, value);
 }
 
-export function saveSolutionByConnection(map: Record<string, string>): void {
-  void rawSet(KEY_SOLUTIONS, map);
+export function saveSessionByConnection(map: Record<string, SessionState>): void {
+  void rawSet(KEY_SESSIONS, map);
 }

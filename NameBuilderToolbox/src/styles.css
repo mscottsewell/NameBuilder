@@ -217,6 +217,7 @@ body {
 
 .list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
 .entity-list { flex: 1 1 40%; min-height: 120px; }
+.welcome-list { max-height: 320px; overflow-y: auto; margin-top: 4px; }
 .attribute-list { flex: 1 1 60%; min-height: 160px; }
 
 .list-item {

@@ -82,6 +82,18 @@ export function defaultFieldDefaults(): FieldDefaults {
   return { prefix: ' - ', suffix: '', dateFormat: 'yyyy-MM-dd', numberFormat: '', timezoneOffsetHours: 0 };
 }
 
+/**
+ * The solution/table/configuration a user was last working on for a given
+ * connection, so a reload can resume exactly where they left off. Persisted
+ * per tool, keyed by connection name.
+ */
+export interface SessionState {
+  solutionId: string | null;
+  entityLogicalName: string | null;
+  /** In-progress configuration at the time of the last save — may include unpublished edits. */
+  config: NameBuilderConfig | null;
+}
+
 /** Deep-clone a config (used for undo-safe edits and import). */
 export function cloneConfig<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;

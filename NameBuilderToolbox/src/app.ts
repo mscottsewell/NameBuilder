@@ -13,6 +13,7 @@ import { mountSidebar } from './ui/sidebar';
 import { mountDesigner } from './ui/designer';
 import { mountPreview } from './ui/preview';
 import { openPublishDialog } from './ui/publishDialog';
+import { openWelcomeDialog } from './ui/welcomeDialog';
 
 async function applyTheme(): Promise<void> {
   try {
@@ -77,8 +78,11 @@ function bootstrap(): void {
     busyIndicator.classList.toggle('active', !!store.state.busyMessage);
   });
 
-  void controller.initialize().then(() => {
+  void controller.initialize().then((needsWelcome) => {
     connectionLabel.textContent = store.state.connectionName;
+    // No prior session for this connection — prompt for a solution/table to
+    // start with, rather than resuming (there's nothing to resume).
+    if (needsWelcome) openWelcomeDialog(controller);
   });
 }
 

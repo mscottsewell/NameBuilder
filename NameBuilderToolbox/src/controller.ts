@@ -4,12 +4,12 @@
  */
 
 import type { EntityInfo } from './dataverse';
-import type { FieldConfig, FieldDefaults } from './model';
-import { collectReferencedAttributes, createEmptyConfig, parseConfig } from './model';
+import type { FieldConfig, FieldDefaults, NameBuilderConfig, SessionState } from './model';
+import { cloneConfig, collectReferencedAttributes, createEmptyConfig, parseConfig } from './model';
 import { inferFieldType } from './engine';
 import { Store, debounce } from './state';
 import { toast } from './ui/toast';
-import { loadPreferences, saveAutoLoadPublished, saveFieldDefaults, saveSolutionByConnection } from './settings';
+import { loadPreferences, saveAutoLoadPublished, saveFieldDefaults, saveSessionByConnection } from './settings';
 
 export class Controller {
   constructor(readonly store: Store) {}
@@ -18,26 +18,58 @@ export class Controller {
     return this.store.state;
   }
 
-  async initialize(): Promise<void> {
+  /**
+   * Loads preferences and resumes the connection's last session (solution +
+   * table + in-progress configuration) when one exists. Returns true when no
+   * prior session was found for this connection — the caller should prompt
+   * the user to pick a solution/table to begin (see ui/welcomeDialog.ts).
+   */
+  async initialize(): Promise<boolean> {
     const prefs = await loadPreferences();
     this.state.fieldDefaults = prefs.fieldDefaults;
     this.state.autoLoadPublished = prefs.autoLoadPublished;
-    this.state.solutionByConnection = prefs.solutionByConnection;
+    this.state.sessionByConnection = prefs.sessionByConnection;
 
     this.state.connectionName = await this.state.service.getConnectionName();
     this.store.emit('busy');
     await this.loadEntities();
     await this.loadSolutions();
-    this.restoreSavedSolutionFilter();
+
+    const session = this.state.sessionByConnection[this.state.connectionName];
+    if (session) {
+      await this.restoreSession(session);
+      return false;
+    }
+    return true;
   }
 
-  /** Re-applies the solution filter saved for the current connection, if any. */
-  private restoreSavedSolutionFilter(): void {
-    const savedId = this.state.solutionByConnection[this.state.connectionName];
-    if (savedId && this.state.solutions.some((s) => s.id === savedId)) {
-      void this.setSolutionFilter(savedId, false);
+  /** Resumes the solution filter, table, and configuration from a saved session. */
+  private async restoreSession(session: SessionState): Promise<void> {
+    if (session.solutionId && this.state.solutions.some((s) => s.id === session.solutionId)) {
+      await this.setSolutionFilter(session.solutionId, false);
+    }
+    if (session.entityLogicalName) {
+      const entity = this.state.entities.find((e) => e.logicalName === session.entityLogicalName);
+      if (entity) {
+        await this.selectEntity(entity, { restoreConfig: session.config ?? undefined });
+      }
     }
   }
+
+  /** Persists the current solution/table/configuration for the active connection. */
+  private persistSession(): void {
+    const connection = this.state.connectionName;
+    if (!connection) return;
+    this.state.sessionByConnection[connection] = {
+      solutionId: this.state.solutionFilterId,
+      entityLogicalName: this.state.selectedEntity?.logicalName ?? null,
+      config: this.state.selectedEntity ? cloneConfig(this.state.config) : null,
+    };
+    saveSessionByConnection(this.state.sessionByConnection);
+  }
+
+  /** Debounced session save for high-frequency edits (typing in block editors). */
+  private readonly persistSessionDebounced = debounce(() => this.persistSession(), 600);
 
   async loadEntities(): Promise<void> {
     this.store.setBusy('Loading tables…');
@@ -63,10 +95,10 @@ export class Controller {
 
   async setSolutionFilter(solutionId: string | null, persist = true): Promise<void> {
     this.state.solutionFilterId = solutionId;
-    if (persist) this.persistSolutionFilter(solutionId);
     if (!solutionId) {
       this.state.solutionEntityIds = null;
       this.store.emit('entities');
+      if (persist) this.persistSession();
       return;
     }
     this.store.setBusy('Loading solution tables…');
@@ -79,25 +111,29 @@ export class Controller {
       this.state.solutionEntityIds = null;
     } finally {
       this.store.setBusy(null);
+      if (persist) this.persistSession();
     }
   }
 
-  private persistSolutionFilter(solutionId: string | null): void {
-    const connection = this.state.connectionName;
-    if (!connection) return;
-    if (solutionId) this.state.solutionByConnection[connection] = solutionId;
-    else delete this.state.solutionByConnection[connection];
-    saveSolutionByConnection(this.state.solutionByConnection);
-  }
-
-  async selectEntity(entity: EntityInfo): Promise<void> {
-    if (this.state.selectedEntity?.logicalName === entity.logicalName) return;
+  /**
+   * Selects a table and loads its columns. When `restoreConfig` is supplied
+   * (resuming a saved session) it is used verbatim and auto-load-published /
+   * inferred-maxLength are skipped, since it may contain unpublished edits.
+   */
+  async selectEntity(entity: EntityInfo, options?: { restoreConfig?: NameBuilderConfig }): Promise<void> {
+    if (this.state.selectedEntity?.logicalName === entity.logicalName && !options?.restoreConfig) return;
     this.state.selectedEntity = entity;
     this.state.attributes = new Map();
     this.state.attributeSearch = '';
-    this.state.config = createEmptyConfig();
-    this.state.config.entity = entity.logicalName;
-    this.state.config.targetField = entity.primaryNameAttribute;
+    if (options?.restoreConfig) {
+      this.state.config = cloneConfig(options.restoreConfig);
+      this.state.config.entity = entity.logicalName;
+      if (!this.state.config.targetField) this.state.config.targetField = entity.primaryNameAttribute;
+    } else {
+      this.state.config = createEmptyConfig();
+      this.state.config.entity = entity.logicalName;
+      this.state.config.targetField = entity.primaryNameAttribute;
+    }
     this.state.expandedBlock = null;
     this.state.sampleRecords = [];
     this.state.selectedRecordId = null;
@@ -108,20 +144,22 @@ export class Controller {
     this.store.setBusy(`Loading ${entity.displayName} columns…`);
     try {
       this.state.attributes = await this.state.service.getAttributes(entity);
-      // Default overall max length from the target column's metadata,
-      // matching the plugin's behavior of inferring it server-side.
-      const target = this.state.attributes.get(entity.primaryNameAttribute.toLowerCase());
-      if (target?.maxLength) this.state.config.maxLength = target.maxLength;
-      this.store.emit('attributes', 'config');
-
-      if (this.state.autoLoadPublished) {
-        await this.tryLoadPublishedConfig(entity, false);
+      if (!options?.restoreConfig) {
+        // Default overall max length from the target column's metadata,
+        // matching the plugin's behavior of inferring it server-side.
+        const target = this.state.attributes.get(entity.primaryNameAttribute.toLowerCase());
+        if (target?.maxLength) this.state.config.maxLength = target.maxLength;
+        if (this.state.autoLoadPublished) {
+          await this.tryLoadPublishedConfig(entity, false);
+        }
       }
+      this.store.emit('attributes', 'config');
       await this.loadSampleRecords();
     } catch (error) {
       toast(this.state.service, 'error', 'Failed to load columns', (error as Error).message);
     } finally {
       this.store.setBusy(null);
+      this.persistSession();
     }
   }
 
@@ -166,6 +204,7 @@ export class Controller {
       await this.refreshRecordViewNow();
     } finally {
       this.store.setBusy(null);
+      this.persistSession();
     }
   }
 
@@ -237,6 +276,7 @@ export class Controller {
     this.state.expandedBlock = this.state.config.fields.length - 1;
     this.store.emit('config');
     this.refreshRecordView();
+    this.persistSessionDebounced();
   }
 
   /**
@@ -271,6 +311,7 @@ export class Controller {
     saveFieldDefaults(next);
     this.store.emit('config');
     this.refreshRecordView();
+    this.persistSessionDebounced();
   }
 
   /** Forcibly applies the current defaults to every existing block. */
@@ -288,6 +329,7 @@ export class Controller {
     });
     this.store.emit('config');
     this.refreshRecordView();
+    this.persistSessionDebounced();
     toast(this.state.service, 'success', 'Defaults applied to all blocks');
   }
 
@@ -302,6 +344,7 @@ export class Controller {
     else if (this.state.expandedBlock !== null && this.state.expandedBlock > index) this.state.expandedBlock--;
     this.store.emit('config');
     this.refreshRecordView();
+    this.persistSessionDebounced();
   }
 
   moveField(index: number, delta: -1 | 1): void {
@@ -313,6 +356,7 @@ export class Controller {
     else if (this.state.expandedBlock === target) this.state.expandedBlock = index;
     this.store.emit('config');
     this.refreshRecordView();
+    this.persistSessionDebounced();
   }
 
   toggleBlockEditor(index: number): void {
@@ -325,6 +369,7 @@ export class Controller {
     if (structural) this.store.emit('config');
     this.refreshRecordView();
     this.store.emit('preview');
+    this.persistSessionDebounced();
   }
 
   importConfig(json: string): void {
@@ -344,6 +389,7 @@ export class Controller {
     this.state.expandedBlock = null;
     this.store.emit('config');
     this.refreshRecordView();
+    this.persistSessionDebounced();
     toast(this.state.service, 'success', 'Configuration imported');
   }
 }
