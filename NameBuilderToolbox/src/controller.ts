@@ -1,0 +1,349 @@
+/**
+ * Orchestration between the data service, the configuration model, and the
+ * UI panels. All state mutations that need cross-panel coordination live here.
+ */
+
+import type { EntityInfo } from './dataverse';
+import type { FieldConfig, FieldDefaults } from './model';
+import { collectReferencedAttributes, createEmptyConfig, parseConfig } from './model';
+import { inferFieldType } from './engine';
+import { Store, debounce } from './state';
+import { toast } from './ui/toast';
+import { loadPreferences, saveAutoLoadPublished, saveFieldDefaults, saveSolutionByConnection } from './settings';
+
+export class Controller {
+  constructor(readonly store: Store) {}
+
+  private get state() {
+    return this.store.state;
+  }
+
+  async initialize(): Promise<void> {
+    const prefs = await loadPreferences();
+    this.state.fieldDefaults = prefs.fieldDefaults;
+    this.state.autoLoadPublished = prefs.autoLoadPublished;
+    this.state.solutionByConnection = prefs.solutionByConnection;
+
+    this.state.connectionName = await this.state.service.getConnectionName();
+    this.store.emit('busy');
+    await this.loadEntities();
+    await this.loadSolutions();
+    this.restoreSavedSolutionFilter();
+  }
+
+  /** Re-applies the solution filter saved for the current connection, if any. */
+  private restoreSavedSolutionFilter(): void {
+    const savedId = this.state.solutionByConnection[this.state.connectionName];
+    if (savedId && this.state.solutions.some((s) => s.id === savedId)) {
+      void this.setSolutionFilter(savedId, false);
+    }
+  }
+
+  async loadEntities(): Promise<void> {
+    this.store.setBusy('Loading tables…');
+    try {
+      this.state.entities = await this.state.service.listEntities();
+      this.state.entitiesLoaded = true;
+      this.store.emit('entities');
+    } catch (error) {
+      toast(this.state.service, 'error', 'Failed to load tables', (error as Error).message);
+    } finally {
+      this.store.setBusy(null);
+    }
+  }
+
+  async loadSolutions(): Promise<void> {
+    try {
+      this.state.solutions = await this.state.service.listSolutions();
+      this.store.emit('entities');
+    } catch {
+      /* solution filter stays hidden if solutions can't be listed */
+    }
+  }
+
+  async setSolutionFilter(solutionId: string | null, persist = true): Promise<void> {
+    this.state.solutionFilterId = solutionId;
+    if (persist) this.persistSolutionFilter(solutionId);
+    if (!solutionId) {
+      this.state.solutionEntityIds = null;
+      this.store.emit('entities');
+      return;
+    }
+    this.store.setBusy('Loading solution tables…');
+    try {
+      this.state.solutionEntityIds = await this.state.service.getSolutionEntityIds(solutionId);
+      this.store.emit('entities');
+    } catch (error) {
+      toast(this.state.service, 'error', 'Failed to load solution components', (error as Error).message);
+      this.state.solutionFilterId = null;
+      this.state.solutionEntityIds = null;
+    } finally {
+      this.store.setBusy(null);
+    }
+  }
+
+  private persistSolutionFilter(solutionId: string | null): void {
+    const connection = this.state.connectionName;
+    if (!connection) return;
+    if (solutionId) this.state.solutionByConnection[connection] = solutionId;
+    else delete this.state.solutionByConnection[connection];
+    saveSolutionByConnection(this.state.solutionByConnection);
+  }
+
+  async selectEntity(entity: EntityInfo): Promise<void> {
+    if (this.state.selectedEntity?.logicalName === entity.logicalName) return;
+    this.state.selectedEntity = entity;
+    this.state.attributes = new Map();
+    this.state.attributeSearch = '';
+    this.state.config = createEmptyConfig();
+    this.state.config.entity = entity.logicalName;
+    this.state.config.targetField = entity.primaryNameAttribute;
+    this.state.expandedBlock = null;
+    this.state.sampleRecords = [];
+    this.state.selectedRecordId = null;
+    this.state.recordView = {};
+    this.state.currencySymbol = '';
+    this.store.emit('entity', 'attributes', 'config', 'records', 'preview');
+
+    this.store.setBusy(`Loading ${entity.displayName} columns…`);
+    try {
+      this.state.attributes = await this.state.service.getAttributes(entity);
+      // Default overall max length from the target column's metadata,
+      // matching the plugin's behavior of inferring it server-side.
+      const target = this.state.attributes.get(entity.primaryNameAttribute.toLowerCase());
+      if (target?.maxLength) this.state.config.maxLength = target.maxLength;
+      this.store.emit('attributes', 'config');
+
+      if (this.state.autoLoadPublished) {
+        await this.tryLoadPublishedConfig(entity, false);
+      }
+      await this.loadSampleRecords();
+    } catch (error) {
+      toast(this.state.service, 'error', 'Failed to load columns', (error as Error).message);
+    } finally {
+      this.store.setBusy(null);
+    }
+  }
+
+  /**
+   * Loads the entity's deployed configuration into the designer. When
+   * `announce` is false (auto-load on select), silence is kept if nothing is
+   * deployed; when true (manual reload), the user is always told the result.
+   */
+  private async tryLoadPublishedConfig(entity: EntityInfo, announce: boolean): Promise<void> {
+    let json: string | null = null;
+    try {
+      json = await this.state.service.getPublishedConfig(entity);
+    } catch (error) {
+      if (announce) toast(this.state.service, 'error', 'Could not read deployed configuration', (error as Error).message);
+      return;
+    }
+
+    if (!json) {
+      if (announce) toast(this.state.service, 'info', 'No deployed configuration', `No NameBuilder step is registered for ${entity.displayName}.`);
+      return;
+    }
+
+    try {
+      const parsed = parseConfig(json);
+      parsed.entity = entity.logicalName;
+      if (!parsed.targetField) parsed.targetField = entity.primaryNameAttribute;
+      this.state.config = parsed;
+      this.state.expandedBlock = null;
+      this.store.emit('config');
+      toast(this.state.service, 'success', 'Loaded deployed configuration', `${parsed.fields.length} block(s) from Dataverse.`);
+    } catch (error) {
+      if (announce) toast(this.state.service, 'error', 'Deployed configuration is invalid JSON', (error as Error).message);
+    }
+  }
+
+  async reloadPublishedConfig(): Promise<void> {
+    const entity = this.state.selectedEntity;
+    if (!entity) return;
+    this.store.setBusy('Loading deployed configuration…');
+    try {
+      await this.tryLoadPublishedConfig(entity, true);
+      await this.refreshRecordViewNow();
+    } finally {
+      this.store.setBusy(null);
+    }
+  }
+
+  async loadSampleRecords(): Promise<void> {
+    const entity = this.state.selectedEntity;
+    if (!entity) return;
+    try {
+      this.state.sampleRecords = await this.state.service.getSampleRecords(entity, this.state.recordSearch, []);
+      if (!this.state.selectedRecordId && this.state.sampleRecords.length > 0) {
+        this.state.selectedRecordId = this.state.sampleRecords[0].id;
+      }
+      this.store.emit('records');
+      await this.refreshRecordViewNow();
+    } catch (error) {
+      toast(this.state.service, 'error', 'Failed to load sample records', (error as Error).message);
+    }
+  }
+
+  readonly searchSampleRecords = debounce(() => void this.loadSampleRecords(), 350);
+
+  async selectSampleRecord(recordId: string): Promise<void> {
+    this.state.selectedRecordId = recordId;
+    this.store.emit('records');
+    await this.refreshRecordViewNow();
+  }
+
+  /** Re-fetches the sample record with every attribute the config references. */
+  async refreshRecordViewNow(): Promise<void> {
+    const { selectedEntity, selectedRecordId, attributes } = this.state;
+    if (!selectedEntity || !selectedRecordId) {
+      this.state.recordView = {};
+      this.store.emit('preview');
+      return;
+    }
+    const wanted = collectReferencedAttributes(this.state.config);
+    try {
+      const { view, currencySymbol } = await this.state.service.getRecordView(
+        selectedEntity, selectedRecordId, attributes, wanted
+      );
+      this.state.recordView = view;
+      this.state.currencySymbol = currencySymbol;
+    } catch (error) {
+      toast(this.state.service, 'warning', 'Preview data unavailable', (error as Error).message);
+      this.state.recordView = {};
+    }
+    this.store.emit('preview');
+  }
+
+  readonly refreshRecordView = debounce(() => void this.refreshRecordViewNow(), 400);
+
+  addField(logicalName: string): void {
+    const attr = this.state.attributes.get(logicalName.toLowerCase());
+    const defaults = this.state.fieldDefaults;
+    const isFirst = this.state.config.fields.length === 0;
+    const field: FieldConfig = { field: logicalName };
+    field.type = attr?.fieldType ?? inferFieldType(logicalName, this.state.attributes);
+
+    // Apply reusable defaults (mirrors the XrmToolBox "Default Field Properties").
+    if (!isFirst && defaults.prefix) field.prefix = defaults.prefix;
+    if (defaults.suffix) field.suffix = defaults.suffix;
+    if (field.type === 'date' || field.type === 'datetime') {
+      field.format = defaults.dateFormat || 'yyyy-MM-dd';
+      if (defaults.timezoneOffsetHours) field.timezoneOffsetHours = defaults.timezoneOffsetHours;
+    } else if ((field.type === 'number' || field.type === 'currency') && defaults.numberFormat) {
+      field.format = defaults.numberFormat;
+    }
+
+    this.state.config.fields.push(field);
+    this.state.expandedBlock = this.state.config.fields.length - 1;
+    this.store.emit('config');
+    this.refreshRecordView();
+  }
+
+  /**
+   * Updates the reusable field defaults, persists them, and propagates each
+   * change to existing top-level blocks that still use the previous default —
+   * matching the XrmToolBox configurator's propagation behavior.
+   */
+  updateFieldDefaults(patch: Partial<FieldDefaults>): void {
+    const current = this.state.fieldDefaults;
+    const next: FieldDefaults = { ...current, ...patch };
+
+    this.state.config.fields.forEach((field, index) => {
+      // Prefix on the first block is intentionally never set (no leading separator).
+      if (patch.prefix !== undefined && index > 0 && (field.prefix ?? '') === current.prefix) {
+        field.prefix = next.prefix || undefined;
+      }
+      if (patch.suffix !== undefined && (field.suffix ?? '') === current.suffix) {
+        field.suffix = next.suffix || undefined;
+      }
+      if (patch.dateFormat !== undefined && (field.type === 'date' || field.type === 'datetime') && (field.format ?? '') === current.dateFormat) {
+        field.format = next.dateFormat || undefined;
+      }
+      if (patch.numberFormat !== undefined && (field.type === 'number' || field.type === 'currency') && (field.format ?? '') === current.numberFormat) {
+        field.format = next.numberFormat || undefined;
+      }
+      if (patch.timezoneOffsetHours !== undefined && (field.type === 'date' || field.type === 'datetime') && (field.timezoneOffsetHours ?? 0) === current.timezoneOffsetHours) {
+        field.timezoneOffsetHours = next.timezoneOffsetHours || undefined;
+      }
+    });
+
+    this.state.fieldDefaults = next;
+    saveFieldDefaults(next);
+    this.store.emit('config');
+    this.refreshRecordView();
+  }
+
+  /** Forcibly applies the current defaults to every existing block. */
+  reapplyDefaultsToAll(): void {
+    const defaults = this.state.fieldDefaults;
+    this.state.config.fields.forEach((field, index) => {
+      field.prefix = index > 0 && defaults.prefix ? defaults.prefix : undefined;
+      field.suffix = defaults.suffix || undefined;
+      if (field.type === 'date' || field.type === 'datetime') {
+        field.format = defaults.dateFormat || undefined;
+        field.timezoneOffsetHours = defaults.timezoneOffsetHours || undefined;
+      } else if (field.type === 'number' || field.type === 'currency') {
+        field.format = defaults.numberFormat || undefined;
+      }
+    });
+    this.store.emit('config');
+    this.refreshRecordView();
+    toast(this.state.service, 'success', 'Defaults applied to all blocks');
+  }
+
+  setAutoLoadPublished(value: boolean): void {
+    this.state.autoLoadPublished = value;
+    saveAutoLoadPublished(value);
+  }
+
+  removeField(index: number): void {
+    this.state.config.fields.splice(index, 1);
+    if (this.state.expandedBlock === index) this.state.expandedBlock = null;
+    else if (this.state.expandedBlock !== null && this.state.expandedBlock > index) this.state.expandedBlock--;
+    this.store.emit('config');
+    this.refreshRecordView();
+  }
+
+  moveField(index: number, delta: -1 | 1): void {
+    const target = index + delta;
+    const fields = this.state.config.fields;
+    if (target < 0 || target >= fields.length) return;
+    [fields[index], fields[target]] = [fields[target], fields[index]];
+    if (this.state.expandedBlock === index) this.state.expandedBlock = target;
+    else if (this.state.expandedBlock === target) this.state.expandedBlock = index;
+    this.store.emit('config');
+    this.refreshRecordView();
+  }
+
+  toggleBlockEditor(index: number): void {
+    this.state.expandedBlock = this.state.expandedBlock === index ? null : index;
+    this.store.emit('config');
+  }
+
+  /** Called after silent field mutations from editor inputs. */
+  configTouched(structural = false): void {
+    if (structural) this.store.emit('config');
+    this.refreshRecordView();
+    this.store.emit('preview');
+  }
+
+  importConfig(json: string): void {
+    const parsed = parseConfig(json);
+    const entityName = parsed.entity;
+    if (entityName && this.state.selectedEntity && entityName !== this.state.selectedEntity.logicalName) {
+      toast(
+        this.state.service, 'warning', 'Configuration is for a different table',
+        `The imported JSON targets '${entityName}' but '${this.state.selectedEntity.logicalName}' is selected.`
+      );
+    }
+    parsed.entity = this.state.selectedEntity?.logicalName ?? parsed.entity;
+    if (this.state.selectedEntity && (!parsed.targetField || parsed.targetField === 'name')) {
+      parsed.targetField = parsed.targetField || this.state.selectedEntity.primaryNameAttribute;
+    }
+    this.state.config = parsed;
+    this.state.expandedBlock = null;
+    this.store.emit('config');
+    this.refreshRecordView();
+    toast(this.state.service, 'success', 'Configuration imported');
+  }
+}
