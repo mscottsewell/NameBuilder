@@ -219,7 +219,7 @@ body {
   background-position: right 10px center;
   background-size: 10px 6px;
 }
-.input.combo-input { cursor: pointer; }
+.input.combo-input { cursor: pointer; font-weight: 700; }
 
 .btn {
   padding: 6px 14px;
@@ -293,6 +293,8 @@ body {
 
 .attribute-item .add-icon { margin-left: auto; color: var(--accent); font-weight: 700; opacity: 0; }
 .attribute-item:hover .add-icon { opacity: 1; }
+.attribute-item { cursor: grab; }
+.attribute-item.dragging { opacity: 0.4; }
 
 .type-badge {
   flex: 0 0 auto;
@@ -341,6 +343,7 @@ body {
   overflow: hidden;
 }
 .block-card.expanded { border-color: var(--accent); }
+.block-card.dragging { opacity: 0.4; }
 
 .block-head {
   display: flex;
@@ -362,6 +365,18 @@ body {
   color: var(--accent-text);
   font-size: 11px;
   font-weight: 700;
+  cursor: grab;
+}
+.block-order:active { cursor: grabbing; }
+
+/* Drop indicator: shown between blocks while dragging a new column in from
+   the sidebar, or reordering an existing block. */
+.drop-indicator {
+  height: 3px;
+  margin: 2px 4px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
 }
 
 .block-name { display: flex; flex-direction: column; min-width: 120px; }

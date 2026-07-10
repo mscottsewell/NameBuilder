@@ -10,6 +10,7 @@ import { clear, el } from './dom';
 import type { Controller } from '../controller';
 import type { AttributeInfo } from '../engine';
 import type { EntityInfo } from '../dataverse';
+import { NEW_FIELD_DRAG_TYPE } from './dragTypes';
 
 const TYPE_BADGES: Record<string, string> = {
   string: 'Aa',
@@ -144,7 +145,7 @@ export function mountSidebar(root: HTMLElement, controller: Controller): void {
   });
   const attributeList = el('div', { class: 'list attribute-list' });
   const attributeHeader = el('div', { class: 'sidebar-heading' }, 'Columns');
-  const attributeHint = el('div', { class: 'hint' }, 'Click a column to add it to the name pattern.');
+  const attributeHint = el('div', { class: 'hint' }, 'Click a column to add it, or drag it into the name pattern.');
 
   const viewSection = el('div', { class: 'sidebar-section' },
     el('div', { class: 'sidebar-heading' }, 'View'),
@@ -241,18 +242,26 @@ export function mountSidebar(root: HTMLElement, controller: Controller): void {
   }
 
   function renderAttributeItem(attr: AttributeInfo): HTMLElement {
-    return el(
+    const item = el(
       'button',
       {
         class: 'list-item attribute-item',
-        title: `${attr.logicalName} (${attr.attributeType}) — click to add`,
+        title: `${attr.logicalName} (${attr.attributeType}) — click to add, or drag into the pattern`,
+        draggable: 'true',
         onclick: () => controller.addField(attr.logicalName),
+        ondragstart: ((e: DragEvent) => {
+          e.dataTransfer?.setData(NEW_FIELD_DRAG_TYPE, attr.logicalName);
+          if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
+          item.classList.add('dragging');
+        }) as EventListener,
+        ondragend: (() => item.classList.remove('dragging')) as EventListener,
       },
       el('span', { class: `type-badge type-${attr.fieldType}` }, TYPE_BADGES[attr.fieldType ?? ''] ?? '?'),
       el('span', { class: 'list-item-primary' }, attr.displayName),
       el('span', { class: 'list-item-secondary' }, attr.logicalName),
       el('span', { class: 'add-icon', 'aria-hidden': 'true' }, '+')
     );
+    return item;
   }
 
   store.on('entities', () => {
@@ -267,7 +276,6 @@ export function mountSidebar(root: HTMLElement, controller: Controller): void {
   store.on('views', renderViews);
   store.on('records', renderRecords);
   store.on('attributes', () => {
-    attributeHeader.textContent = state.selectedEntity ? `Columns — ${state.selectedEntity.displayName}` : 'Columns';
     attributeSearch.value = state.attributeSearch;
     renderAttributeList();
   });

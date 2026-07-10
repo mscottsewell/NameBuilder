@@ -333,10 +333,17 @@ export class Controller {
 
   readonly refreshRecordView = debounce(() => void this.refreshRecordViewNow(), 400);
 
-  addField(logicalName: string): void {
+  /**
+   * Adds a column as a new block. `atIndex` inserts at a specific position
+   * (used when dropping a dragged column between existing blocks);
+   * omitting it appends at the end (plain click-to-add).
+   */
+  addField(logicalName: string, atIndex?: number): void {
     const attr = this.state.attributes.get(logicalName.toLowerCase());
     const defaults = this.state.fieldDefaults;
-    const isFirst = this.state.config.fields.length === 0;
+    const fields = this.state.config.fields;
+    const insertIndex = atIndex === undefined ? fields.length : Math.max(0, Math.min(atIndex, fields.length));
+    const isFirst = insertIndex === 0;
     const field: FieldConfig = { field: logicalName };
     field.type = attr?.fieldType ?? inferFieldType(logicalName, this.state.attributes);
 
@@ -350,8 +357,37 @@ export class Controller {
       field.format = defaults.numberFormat;
     }
 
-    this.state.config.fields.push(field);
-    this.state.expandedBlock = this.state.config.fields.length - 1;
+    fields.splice(insertIndex, 0, field);
+    this.state.expandedBlock = insertIndex;
+    this.store.emit('config');
+    this.refreshRecordView();
+    this.persistSessionDebounced();
+  }
+
+  /**
+   * Moves an existing block to an arbitrary position (drag-reorder within
+   * the pattern list). `toIndex` is the block's desired final index.
+   */
+  moveFieldTo(fromIndex: number, toIndex: number): void {
+    const fields = this.state.config.fields;
+    if (fromIndex < 0 || fromIndex >= fields.length) return;
+    const target = Math.max(0, Math.min(toIndex, fields.length - 1));
+    if (fromIndex === target) return;
+
+    const [moved] = fields.splice(fromIndex, 1);
+    fields.splice(target, 0, moved);
+
+    if (this.state.expandedBlock !== null) {
+      if (this.state.expandedBlock === fromIndex) {
+        this.state.expandedBlock = target;
+      } else {
+        let idx = this.state.expandedBlock;
+        if (idx > fromIndex) idx--;
+        if (idx >= target) idx++;
+        this.state.expandedBlock = idx;
+      }
+    }
+
     this.store.emit('config');
     this.refreshRecordView();
     this.persistSessionDebounced();

@@ -9,6 +9,7 @@ import type { Controller } from '../controller';
 import type { FieldCondition, FieldConfig, FieldType } from '../model';
 import { CONDITION_OPERATORS } from '../model';
 import { mountLivePreview } from './preview';
+import { NEW_FIELD_DRAG_TYPE, REORDER_DRAG_TYPE } from './dragTypes';
 
 const FIELD_TYPES: FieldType[] = ['string', 'lookup', 'date', 'number', 'currency', 'optionset'];
 
@@ -28,6 +29,57 @@ export function mountDesigner(root: HTMLElement, controller: Controller): void {
 
   root.append(previewHost, header, blockList);
   mountLivePreview(previewHost, controller);
+
+  // ----- Drag & drop: add a column between blocks, or reorder existing blocks -----
+
+  const dropIndicator = el('div', { class: 'drop-indicator' });
+
+  function getBlockCards(): HTMLElement[] {
+    return [...blockList.querySelectorAll(':scope > .block-card')] as HTMLElement[];
+  }
+
+  /** Index (0..count) where a drop at this Y position would land, ignoring the indicator itself. */
+  function computeDropIndex(clientY: number): number {
+    const cards = getBlockCards();
+    for (let i = 0; i < cards.length; i++) {
+      const rect = cards[i].getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) return i;
+    }
+    return cards.length;
+  }
+
+  function hideDropIndicator(): void {
+    if (dropIndicator.parentElement) dropIndicator.remove();
+  }
+
+  blockList.addEventListener('dragover', (e: DragEvent) => {
+    const types = e.dataTransfer?.types ?? [];
+    const isReorder = types.includes(REORDER_DRAG_TYPE);
+    if (!isReorder && !types.includes(NEW_FIELD_DRAG_TYPE)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = isReorder ? 'move' : 'copy';
+    const index = computeDropIndex(e.clientY);
+    blockList.insertBefore(dropIndicator, getBlockCards()[index] ?? null);
+  });
+
+  blockList.addEventListener('drop', (e: DragEvent) => {
+    const newField = e.dataTransfer?.getData(NEW_FIELD_DRAG_TYPE);
+    const reorderFrom = e.dataTransfer?.getData(REORDER_DRAG_TYPE);
+    const index = computeDropIndex(e.clientY);
+    hideDropIndicator();
+    if (!newField && !reorderFrom) return;
+    e.preventDefault();
+    if (newField) {
+      controller.addField(newField, index);
+    } else if (reorderFrom) {
+      controller.moveFieldTo(parseInt(reorderFrom, 10), index);
+    }
+  });
+
+  // Safety net: if a drag (from the sidebar's column list or a block's drag
+  // handle) ends without a valid drop — e.g. released outside the pattern
+  // list — make sure the indicator never gets stuck on screen.
+  document.addEventListener('dragend', hideDropIndicator);
 
   function displayNameFor(logicalName: string): string {
     return state.attributes.get(logicalName.toLowerCase())?.displayName ?? logicalName;
@@ -62,7 +114,7 @@ export function mountDesigner(root: HTMLElement, controller: Controller): void {
         el('div', { class: 'placeholder' },
           el('div', { class: 'placeholder-icon' }, '⧉'),
           el('h3', {}, 'Design an automatic record name'),
-          el('p', {}, 'Pick a table on the left, then click columns to add them as building blocks. Configure separators, formats, and conditions — the preview updates live.')
+          el('p', {}, 'Pick a table on the left, then click or drag columns to add them as building blocks. Configure separators, formats, and conditions — the preview updates live.')
         )
       );
       return;
@@ -98,10 +150,28 @@ export function mountDesigner(root: HTMLElement, controller: Controller): void {
     const expanded = state.expandedBlock === index;
 
     const card = el('div', { class: `block-card${expanded ? ' expanded' : ''}` });
+    const orderBadge = el('span', {
+      class: 'block-order',
+      title: 'Drag to reorder',
+      draggable: 'true',
+      ondragstart: ((e: DragEvent) => {
+        e.dataTransfer?.setData(REORDER_DRAG_TYPE, String(index));
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setDragImage(card, 16, 16);
+        }
+        card.classList.add('dragging');
+      }) as EventListener,
+      ondragend: (() => {
+        card.classList.remove('dragging');
+        hideDropIndicator();
+      }) as EventListener,
+    }, String(index + 1));
+
     const head = el(
       'div',
       { class: 'block-head', onclick: () => controller.toggleBlockEditor(index) },
-      el('span', { class: 'block-order' }, String(index + 1)),
+      orderBadge,
       el('div', { class: 'block-name' },
         el('span', { class: 'block-display' }, displayNameFor(field.field)),
         el('span', { class: 'block-logical' }, `${field.field} · ${field.type ?? 'auto'}`)
