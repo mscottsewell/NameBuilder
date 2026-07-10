@@ -2,6 +2,8 @@
 
 This guide is for Dataverse administrators who need to understand, review, troubleshoot, or uninstall NameBuilder components in their environment.
 
+> This guide's instructions are written around the XrmToolBox Configurator, but everything here applies equally regardless of which front-end (XrmToolBox or [Power Platform ToolBox](NameBuilderToolbox/README.md)) was used to publish a configuration — both produce identical Dataverse artifacts (plugin assembly, plugin steps, PreImages).
+
 ## Table of Contents
 
 - [Understanding NameBuilder Components](#understanding-namebuilder-components)

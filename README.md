@@ -25,9 +25,19 @@ NameBuilder solves this by **automatically assembling names** from the fields th
 - Opportunities: `Contoso Ltd - $2.50M - 75% - Durden, Tyler`
 - Projects: ` 2026JAN ~ John Smith | Web Development`
 
-## Getting Started (The Easy Way)
+## Getting Started
 
->**The easiest way to use NameBuilder is through the XrmToolBox**:
+NameBuilder ships two interchangeable visual designers for the same Dataverse plugin — pick whichever tool you already use:
+
+| | [XrmToolBox](https://www.xrmtoolbox.com/) | [Power Platform ToolBox](https://www.powerplatformtoolbox.com/) |
+| --- | --- | --- |
+| Platform | Windows desktop app | Cross-platform web app |
+| Install | Tool Library → **NameBuilder Configurator** | Install `@mscottsewell/namebuilder-toolbox` |
+| Details | Walkthrough below | [NameBuilderToolbox/README.md](NameBuilderToolbox/README.md) |
+
+Both produce the exact same JSON configuration and register the exact same plugin steps, so you can freely switch between them against the same environment.
+
+## Getting Started with XrmToolBox
 
 ### Step 1: Install NameBuilder Configurator
 
@@ -197,7 +207,8 @@ Topics covered:
 Want to build from source, extend the code, or understand the architecture?
 
 - **Plugin architecture and development**: [NameBuilderPlugin/README.md](NameBuilderPlugin/README.md)
-- **Building from source**: [Docs/BUILDING.md](Docs/BUILDING.md)
+- **Building the XrmToolBox configurator from source**: [Docs/BUILDING.md](Docs/BUILDING.md)
+- **Building the Power Platform ToolBox tool from source**: [NameBuilderToolbox/README.md](NameBuilderToolbox/README.md#development)
 - **Manual plugin deployment**: [NameBuilderPlugin/QUICKSTART.md](NameBuilderPlugin/QUICKSTART.md)
 
 ## Repository Structure
