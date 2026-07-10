@@ -205,6 +205,7 @@ Want to build from source, extend the code, or understand the architecture?
 This is a monorepo containing:
 
 - **[NameBuilderConfigurator](NameBuilderConfigurator/)** – XrmToolBox plugin (visual designer + publisher)
+- **[NameBuilderToolbox](NameBuilderToolbox/)** – Power Platform ToolBox tool (web-based visual designer + publisher)
 - **[NameBuilderPlugin](NameBuilderPlugin/)** – Dataverse server plugin (runtime engine)
 - **[Docs](Docs/)** – Build scripts and developer documentation
 
