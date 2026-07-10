@@ -67,12 +67,15 @@ The publish dialog compares the server's installed assembly version to the embed
 
 ## Publishing to the ToolBox
 
-1. Bump `version` in `package.json`.
-2. `npm run build`
-3. `npm publish --access public`
-4. Submit/refresh via the [Tool Submission Form](https://www.powerplatformtoolbox.com/submit-tool).
+1. This branch/PR must be merged to `main` first — `configurations.readmeUrl` points at the raw GitHub README on `main`, and `pptb-validate` (and the ToolBox registry) require it to actually resolve.
+2. Bump `version` in `package.json` (skip for the first release).
+3. `npm run build`
+4. `npm run validate` (runs `pptb-validate`) — must show `✔ Validation passed` with no errors.
+5. `npm login` (first time only), then `npm publish --access public`.
+6. Install from npm in PPTB's Debug menu and smoke-test the published package before submitting.
+7. Submit/refresh via the [Tool Submission Form](https://www.powerplatformtoolbox.com/submit-tool) (package name + up to 3 category tags). Automated + manual review typically takes 48–72 hours.
 
-The `package.json` doubles as the PPTB tool manifest (`displayName`, `icon`, `main`, `configurations`, `features.minAPI`).
+The `package.json` doubles as the PPTB tool manifest (`displayName`, `icon`, `main`, `configurations`, `features`). A package-local [LICENSE](LICENSE) file is required alongside the root repo license, since npm only packages files inside this directory.
 
 ## Project layout
 
