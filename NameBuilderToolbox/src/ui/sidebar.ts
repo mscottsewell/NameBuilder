@@ -11,6 +11,7 @@ import type { Controller } from '../controller';
 import type { AttributeInfo } from '../engine';
 import type { EntityInfo } from '../dataverse';
 import { NEW_FIELD_DRAG_TYPE } from './dragTypes';
+import { renderGroupedEntities } from './entityList';
 
 const TYPE_BADGES: Record<string, string> = {
   string: 'Aa',
@@ -91,9 +92,7 @@ export function mountSidebar(root: HTMLElement, controller: Controller): void {
       entityDropdown.append(el('div', { class: 'empty' }, 'No tables match.'));
       return;
     }
-    for (const entity of filtered.slice(0, 200)) {
-      entityDropdown.append(renderEntityOption(entity));
-    }
+    renderGroupedEntities(entityDropdown, filtered.slice(0, 200), state.configuredEntityNames, renderEntityOption);
     if (filtered.length > 200) {
       entityDropdown.append(el('div', { class: 'empty' }, `…and ${filtered.length - 200} more. Keep typing.`));
     }
@@ -104,7 +103,7 @@ export function mountSidebar(root: HTMLElement, controller: Controller): void {
     return el(
       'button',
       {
-        class: `list-item${selected ? ' selected' : ''}`,
+        class: `list-item entity-row${selected ? ' selected' : ''}`,
         title: entity.logicalName,
         // mousedown fires before the input's blur/outside-click handling.
         onmousedown: ((e: Event) => {

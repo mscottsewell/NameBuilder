@@ -291,6 +291,18 @@ body {
 .list-item-primary { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list-item-secondary { color: var(--text-muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Configured/Unconfigured table grouping (sidebar combobox + welcome dialog) */
+.entity-group-heading {
+  font-weight: 700;
+  text-decoration: underline;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 6px 8px 2px;
+}
+.entity-group-heading:first-child { padding-top: 2px; }
+.entity-row { padding-left: 20px; font-weight: 400; }
+.entity-row.selected { font-weight: 700; }
+
 .attribute-item .add-icon { margin-left: auto; color: var(--accent); font-weight: 700; opacity: 0; }
 .attribute-item:hover .add-icon { opacity: 1; }
 .attribute-item { cursor: grab; }

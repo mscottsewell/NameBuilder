@@ -6,7 +6,7 @@
 
 import type { AttributeInfo, RecordView } from './engine';
 import { mapAttributeType } from './engine';
-import { fetchPublishedConfig } from './publish';
+import { fetchPublishedConfig, getConfiguredEntityLogicalNames } from './publish';
 
 export interface EntityInfo {
   logicalName: string;
@@ -56,6 +56,8 @@ export interface DataService {
   getRecordView(entity: EntityInfo, recordId: string, attributes: Map<string, AttributeInfo>, wanted: string[]): Promise<{ view: RecordView; currencySymbol: string }>;
   /** Configuration JSON already deployed for this entity, or null if none. */
   getPublishedConfig(entity: EntityInfo): Promise<string | null>;
+  /** Logical names of every table that already has a NameBuilder step registered. */
+  getConfiguredEntityNames(): Promise<Set<string>>;
   copyToClipboard(text: string): Promise<void>;
   notify(type: 'info' | 'success' | 'warning' | 'error', title: string, body?: string): Promise<void>;
 }
@@ -479,6 +481,10 @@ export class PptbDataService implements DataService {
 
   async getPublishedConfig(entity: EntityInfo): Promise<string | null> {
     return fetchPublishedConfig(entity.logicalName);
+  }
+
+  async getConfiguredEntityNames(): Promise<Set<string>> {
+    return getConfiguredEntityLogicalNames();
   }
 
   async copyToClipboard(text: string): Promise<void> {

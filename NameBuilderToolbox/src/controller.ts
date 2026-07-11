@@ -32,6 +32,7 @@ export class Controller {
 
     this.state.connectionName = await this.state.service.getConnectionName();
     this.store.emit('busy');
+    void this.loadConfiguredEntities();
     await this.loadEntities();
     await this.loadSolutions();
 
@@ -78,6 +79,16 @@ export class Controller {
 
   /** Debounced session save for high-frequency edits (typing in block editors). */
   private readonly persistSessionDebounced = debounce(() => this.persistSession(), 600);
+
+  /** Loads which tables already have a deployed NameBuilder step, for the Configured/Unconfigured grouping. */
+  async loadConfiguredEntities(): Promise<void> {
+    try {
+      this.state.configuredEntityNames = await this.state.service.getConfiguredEntityNames();
+      this.store.emit('entities');
+    } catch {
+      // Non-fatal — table pickers just render as a single flat list.
+    }
+  }
 
   async loadEntities(): Promise<void> {
     this.store.setBusy('Loading tables…');

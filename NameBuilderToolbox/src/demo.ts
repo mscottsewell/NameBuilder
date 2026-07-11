@@ -204,6 +204,11 @@ export class DemoDataService implements DataService {
     return null;
   }
 
+  async getConfiguredEntityNames(): Promise<Set<string>> {
+    // Demonstrates the Configured/Unconfigured grouping without a server.
+    return new Set(['incident']);
+  }
+
   async copyToClipboard(text: string): Promise<void> {
     await navigator.clipboard.writeText(text);
   }

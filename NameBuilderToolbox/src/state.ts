@@ -21,6 +21,8 @@ export interface AppState {
   entitySearch: string;
   entities: EntityInfo[];
   entitiesLoaded: boolean;
+  /** Logical names of tables that already have a deployed NameBuilder step (lowercased). */
+  configuredEntityNames: Set<string>;
 
   selectedEntity: EntityInfo | null;
   attributes: Map<string, AttributeInfo>;
@@ -73,6 +75,7 @@ export class Store {
       entitySearch: '',
       entities: [],
       entitiesLoaded: false,
+      configuredEntityNames: new Set(),
       selectedEntity: null,
       attributes: new Map(),
       attributeSearch: '',

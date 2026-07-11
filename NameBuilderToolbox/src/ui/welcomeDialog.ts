@@ -9,6 +9,7 @@
 import { clear, el } from './dom';
 import type { Controller } from '../controller';
 import type { EntityInfo } from '../dataverse';
+import { renderGroupedEntities } from './entityList';
 
 export function openWelcomeDialog(controller: Controller): void {
   const { store } = controller;
@@ -82,15 +83,13 @@ export function openWelcomeDialog(controller: Controller): void {
       return;
     }
 
-    for (const entity of filtered.slice(0, 200)) {
-      list.append(renderEntityRow(entity));
-    }
+    renderGroupedEntities(list, filtered.slice(0, 200), state.configuredEntityNames, renderEntityRow);
   }
 
   function renderEntityRow(entity: EntityInfo): HTMLElement {
     return el(
       'button',
-      { class: 'list-item', title: entity.logicalName, onclick: () => void start(entity) },
+      { class: 'list-item entity-row', title: entity.logicalName, onclick: () => void start(entity) },
       el('span', { class: 'list-item-primary' }, entity.displayName),
       el('span', { class: 'list-item-secondary' }, entity.logicalName)
     );

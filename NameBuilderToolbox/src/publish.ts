@@ -84,6 +84,35 @@ export async function getServerPluginStatus(): Promise<ServerPluginStatus> {
   };
 }
 
+/**
+ * Logical names of every table that already has a NameBuilder step
+ * registered (Create and/or Update), used to group the table picker into
+ * "Configured" / "Unconfigured" sections. Returns an empty set when the
+ * plugin isn't installed yet — nothing can be configured before that.
+ */
+export async function getConfiguredEntityLogicalNames(): Promise<Set<string>> {
+  const status = await getServerPluginStatus();
+  if (!status.installed || !status.pluginTypeId) return new Set();
+
+  try {
+    const result = await api().queryData(
+      `sdkmessageprocessingsteps?$select=sdkmessageprocessingstepid` +
+        `&$filter=_eventhandler_value eq ${status.pluginTypeId}` +
+        `&$expand=sdkmessagefilterid($select=primaryobjecttypecode)`
+    );
+    const names = new Set<string>();
+    for (const row of (result.value ?? []) as Record<string, unknown>[]) {
+      const filter = row.sdkmessagefilterid as Record<string, unknown> | undefined;
+      const name = filter?.primaryobjecttypecode;
+      if (typeof name === 'string' && name) names.add(name.toLowerCase());
+    }
+    return names;
+  } catch {
+    // Non-fatal — the table picker just falls back to a single flat list.
+    return new Set();
+  }
+}
+
 /** Uploads the embedded plugin DLL (create or update) and ensures the plugin type. */
 export async function installOrUpdateAssembly(
   status: ServerPluginStatus,
