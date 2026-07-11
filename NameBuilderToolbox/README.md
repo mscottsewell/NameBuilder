@@ -70,14 +70,15 @@ The publish dialog compares the server's installed assembly version to the embed
 ## Publishing to the ToolBox
 
 1. This branch/PR must be merged to `main` first — `configurations.readmeUrl` points at the raw GitHub README on `main`, and `pptb-validate` (and the ToolBox registry) require it to actually resolve.
-2. Bump `version` in `package.json` (skip for the first release).
-3. `npm run build`
-4. `npm run validate` (runs `pptb-validate`) — must show `✔ Validation passed` with no errors.
-5. `npm login` (first time only), then `npm publish --access public`.
-6. Install from npm in PPTB's Debug menu and smoke-test the published package before submitting.
-7. Submit/refresh via the [Tool Submission Form](https://www.powerplatformtoolbox.com/submit-tool) (package name + up to 3 category tags). Automated + manual review typically takes 48–72 hours.
+2. Bump `version` in `package.json` (skip for the first release) — npm never lets you republish an already-used version number.
+3. `npm shrinkwrap` — regenerates `npm-shrinkwrap.json` from `package-lock.json` with the new version. **Required**: the PPTB Tool Submission Form's own `structure_validation` check rejects packages without it, separately from anything `pptb-validate` checks locally. Unlike `package-lock.json` (which npm always excludes from published tarballs), `npm-shrinkwrap.json` actually ships — but only because it's explicitly listed in `files` below; npm doesn't include it automatically just for existing.
+4. `npm run build`
+5. `npm run validate` (runs `pptb-validate`) — must show `✔ Validation passed` with no errors.
+6. `npm login` (first time only), then `npm publish --access public`. Sanity-check with `npm pack --dry-run` first if you want to see exactly what will ship — `npm-shrinkwrap.json` should be in the "Tarball Contents" list.
+7. Install from npm in PPTB's Debug menu and smoke-test the published package before submitting.
+8. Submit/refresh via the [Tool Submission Form](https://www.powerplatformtoolbox.com/submit-tool) (package name + up to 3 category tags). Automated + manual review typically takes 48–72 hours.
 
-The `package.json` doubles as the PPTB tool manifest (`displayName`, `icon`, `main`, `configurations`). A package-local [LICENSE](LICENSE) file is required alongside the root repo license, since npm only packages files inside this directory.
+The `package.json` doubles as the PPTB tool manifest (`displayName`, `icon`, `main`, `configurations`). A package-local [LICENSE](LICENSE) file is required alongside the root repo license, since npm only packages files inside this directory. `files` explicitly lists `dist` and `npm-shrinkwrap.json` — npm's own always-included files (`package.json`, `README.md`, `LICENSE`) ship regardless of `files`, but the shrinkwrap does not.
 
 The manifest intentionally omits `features` — NameBuilder always operates against a single Dataverse connection and never uses a secondary one, so per the manifest docs ("omit this section entirely if neither field applies") there's nothing to declare.
 
