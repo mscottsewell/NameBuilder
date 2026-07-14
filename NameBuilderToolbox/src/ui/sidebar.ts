@@ -147,9 +147,8 @@ export function mountSidebar(root: HTMLElement, controller: Controller): void {
   const attributeHint = el('div', { class: 'hint' }, 'Click a column to add it, or drag it into the name pattern.');
 
   const viewSection = el('div', { class: 'sidebar-section' },
-    el('div', { class: 'sidebar-heading' }, 'View'),
+    el('div', { class: 'sidebar-heading' }, 'View & Sample Record'),
     viewSelect,
-    el('div', { class: 'sidebar-heading' }, 'Preview record'),
     recordSelect
   );
   viewSection.style.display = 'none';
