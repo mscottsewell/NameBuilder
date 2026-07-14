@@ -4,6 +4,8 @@
 
 In Dataverse, the primary name field is what users see in lookups, timelines, views, and search results. It's usually built from information that's already on the form somewhere else, so re-typing it is wasted effort — and when it's inconsistent or missing, people waste time opening records just to figure out what they're looking at. NameBuilder assembles that name automatically from the fields that actually matter, every time a record is created or updated.
 
+![NameBuilder's pattern designer, showing a Case name pattern built from Customer, Created On, Case Number, and Priority, with the live preview highlighted at the top](docs/screenshot.png)
+
 ## Why NameBuilder
 
 - **No code, no manual configuration files.** Build a pattern by clicking or dragging columns into place; the tool generates and publishes the underlying JSON for you.
