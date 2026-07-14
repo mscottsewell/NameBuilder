@@ -10,8 +10,7 @@ import { Controller } from './controller';
 import { PptbDataService } from './dataverse';
 import { DemoDataService } from './demo';
 import { mountSidebar } from './ui/sidebar';
-import { mountDesigner } from './ui/designer';
-import { mountPropertiesPanel } from './ui/propertiesPanel';
+import { mountConfigPane } from './ui/configPane';
 import { openPublishDialog } from './ui/publishDialog';
 import { openWelcomeDialog } from './ui/welcomeDialog';
 import { mountBusyOverlay } from './ui/busyOverlay';
@@ -65,14 +64,12 @@ function bootstrap(): void {
   );
 
   const sidebar = el('aside', { class: 'app-sidebar' });
-  const designer = el('main', { class: 'app-designer' });
-  const properties = el('section', { class: 'app-properties' });
+  const configPane = el('main', { class: 'app-config-pane' });
 
-  document.body.append(header, el('div', { class: 'app-body' }, sidebar, designer, properties));
+  document.body.append(header, el('div', { class: 'app-body' }, sidebar, configPane));
 
   mountSidebar(sidebar, controller);
-  mountDesigner(designer, controller);
-  mountPropertiesPanel(properties, controller);
+  mountConfigPane(configPane, controller);
   mountBusyOverlay(controller);
 
   store.on('busy', () => {

@@ -1,5 +1,6 @@
 /**
- * Right cell: tabbed Properties / JSON panel.
+ * Properties and JSON tab content — two of the three tabs in the combined
+ * Configuration/Properties/JSON pane (see ui/configPane.ts).
  *
  * Properties = Global Configuration (plugin solution, target field, max
  * length, tracing) + Default Field Properties (reusable prefix/suffix/
@@ -14,32 +15,9 @@ import type { FieldDefaults } from '../model';
 import { serializeConfig } from '../model';
 import { toast } from './toast';
 
-export function mountPropertiesPanel(root: HTMLElement, controller: Controller): void {
+export function mountPropertiesTab(root: HTMLElement, controller: Controller): void {
   const { store } = controller;
   const state = store.state;
-
-  let activeTab: 'properties' | 'json' = 'properties';
-
-  const propertiesTabButton = el('button', { class: 'tab active', onclick: () => switchTab('properties') }, 'Properties');
-  const jsonTabButton = el('button', { class: 'tab', onclick: () => switchTab('json') }, 'JSON');
-  const tabBar = el('div', { class: 'tab-bar' }, propertiesTabButton, jsonTabButton);
-
-  const propertiesTab = el('div', { class: 'tab-content' });
-  const jsonTab = el('div', { class: 'tab-content json-section' });
-  jsonTab.style.display = 'none';
-
-  root.append(tabBar, propertiesTab, jsonTab);
-
-  function switchTab(tab: 'properties' | 'json'): void {
-    activeTab = tab;
-    propertiesTabButton.classList.toggle('active', tab === 'properties');
-    jsonTabButton.classList.toggle('active', tab === 'json');
-    propertiesTab.style.display = tab === 'properties' ? '' : 'none';
-    jsonTab.style.display = tab === 'json' ? '' : 'none';
-    if (tab === 'json') renderJson();
-  }
-
-  // ---------- Properties tab ----------
 
   function labeled(text: string, control: HTMLElement, hint?: string): HTMLElement {
     return el('label', { class: 'field' },
@@ -57,10 +35,27 @@ export function mountPropertiesPanel(root: HTMLElement, controller: Controller):
     select.value = String(current);
   }
 
+  function isKnownColumn(logicalName: string): boolean {
+    if (state.attributes.size === 0) return true; // metadata still loading — don't warn yet
+    return state.attributes.has(logicalName.trim().toLowerCase());
+  }
+
+  function defaultsText(value: string, placeholder: string, apply: (v: string) => void): HTMLInputElement {
+    const input = el('input', {
+      class: 'input',
+      type: 'text',
+      value,
+      placeholder,
+      spellcheck: 'false',
+      oninput: () => apply(input.value),
+    });
+    return input;
+  }
+
   function renderProperties(): void {
-    clear(propertiesTab);
+    clear(root);
     if (!state.selectedEntity) {
-      propertiesTab.append(el('div', { class: 'empty' }, 'Select a table to edit its configuration.'));
+      root.append(el('div', { class: 'empty' }, 'Select a table to edit its configuration.'));
       return;
     }
 
@@ -136,7 +131,7 @@ export function mountPropertiesPanel(root: HTMLElement, controller: Controller):
       ? 'Publish registers the plugin steps into this solution.'
       : 'Publish registers the plugin steps into this solution. Following the Solution & Table filter — change here to override.';
 
-    propertiesTab.append(
+    root.append(
       el('h3', { class: 'panel-title' }, 'Global Configuration'),
       labeled('Plugin Solution', solutionSelect, solutionHint),
       labeled('Target Field Name', targetField,
@@ -161,24 +156,23 @@ export function mountPropertiesPanel(root: HTMLElement, controller: Controller):
     );
   }
 
-  function isKnownColumn(logicalName: string): boolean {
-    if (state.attributes.size === 0) return true; // metadata still loading — don't warn yet
-    return state.attributes.has(logicalName.trim().toLowerCase());
-  }
+  store.on('entity', renderProperties);
+  store.on('entities', renderProperties);
+  store.on('attributes', renderProperties);
+  store.on('config', () => {
+    // Skip the rebuild while the user is typing in this panel — its inputs
+    // are the *source* of those config changes, and a re-render would steal
+    // focus on every keystroke. External config swaps (import, entity change,
+    // reload deployed) never have focus here, so they re-render normally.
+    if (!root.contains(document.activeElement)) renderProperties();
+  });
 
-  function defaultsText(value: string, placeholder: string, apply: (v: string) => void): HTMLInputElement {
-    const input = el('input', {
-      class: 'input',
-      type: 'text',
-      value,
-      placeholder,
-      spellcheck: 'false',
-      oninput: () => apply(input.value),
-    });
-    return input;
-  }
+  renderProperties();
+}
 
-  // ---------- JSON tab ----------
+export function mountJsonTab(root: HTMLElement, controller: Controller): void {
+  const { store } = controller;
+  const state = store.state;
 
   const jsonArea = el('textarea', {
     class: 'json-area',
@@ -246,7 +240,7 @@ export function mountPropertiesPanel(root: HTMLElement, controller: Controller):
     onclick: () => importInput.click(),
   }, 'Import…');
 
-  jsonTab.append(
+  root.append(
     el('div', { class: 'btn-row' }, applyButton, copyButton, importButton, exportButton),
     jsonArea,
     importInput
@@ -257,32 +251,17 @@ export function mountPropertiesPanel(root: HTMLElement, controller: Controller):
     jsonArea.value = serializeConfig(state.config);
   }
 
-  // ---------- Subscriptions ----------
-
   store.on('entity', () => {
     jsonDirty = false;
     applyButton.disabled = true;
-    renderProperties();
     renderJson();
   });
-  store.on('entities', renderProperties);
-  store.on('attributes', renderProperties);
   store.on('config', () => {
     jsonDirty = false;
     applyButton.disabled = true;
-    // Skip the rebuild while the user is typing in this panel — its inputs
-    // are the *source* of those config changes, and a re-render would steal
-    // focus on every keystroke. External config swaps (import, entity change,
-    // reload deployed) never have focus here, so they re-render normally.
-    if (!propertiesTab.contains(document.activeElement)) {
-      renderProperties();
-    }
     renderJson();
   });
-  store.on('preview', () => {
-    if (activeTab === 'json') renderJson();
-  });
+  store.on('preview', renderJson);
 
-  renderProperties();
   renderJson();
 }
