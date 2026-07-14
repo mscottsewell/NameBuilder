@@ -15,6 +15,8 @@ In Dataverse, the primary name field is what users see in lookups, timelines, vi
 
 ## Features
 
+Everything below happens in one screen: a table/column browser on the left, and the pattern designer, properties, and generated JSON as tabs on the right.
+
 ### Designing a pattern
 
 - **Table picker** — searchable dropdown, optionally scoped to a solution, grouped into **Configured** / **Unconfigured**.
