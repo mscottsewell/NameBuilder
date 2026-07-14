@@ -1,44 +1,69 @@
 # NameBuilder for Power Platform ToolBox
 
-**Visually design automatic record names for Dataverse — and publish the plugin steps in one click — right inside [Power Platform ToolBox](https://www.powerplatformtoolbox.com/).**
+**Stop typing the same information twice.** NameBuilder visually designs automatic record-name patterns for Dataverse — and publishes them with one click — right inside [Power Platform ToolBox](https://www.powerplatformtoolbox.com/). No code, no manual JSON editing required.
 
-This is the Power Platform ToolBox (PPTB) edition of the NameBuilder Configurator. It replaces the WinForms-based XrmToolBox tool with a sandboxed web tool built on the [PPTB tool APIs](https://docs.powerplatformtoolbox.com/tool-development). The **Dataverse server plugin is unchanged** — this tool produces the exact same JSON configuration and registers the exact same plugin steps as the XrmToolBox configurator, so both tools are fully interchangeable against the same environment.
+In Dataverse, the primary name field is what users see in lookups, timelines, views, and search results. It's usually built from information that's already on the form somewhere else, so re-typing it is wasted effort — and when it's inconsistent or missing, people waste time opening records just to figure out what they're looking at. NameBuilder assembles that name automatically from the fields that actually matter, every time a record is created or updated.
 
-## What it does
+## Why NameBuilder
 
-1. **Pick a table** (searchable dropdown, optionally filtered by solution), and optionally a **view** — the view scopes both the column palette and the preview-record picker.
-2. **Click columns** to add them as name blocks — text, lookups, dates, numbers, currency, and choice columns are supported.
-3. **Configure each block**: prefix/suffix separators, date formats (with `upper:` / `lower:` / `title:` casing transforms and timezone offsets), number/currency formats with K/M/B scaling, default values, per-block truncation, alternate-column fallback chains, and conditional inclusion (`equals`, `contains`, `in`, numeric comparisons, empty checks, with ANY/ALL grouping).
-4. **Watch the live preview** update against a real record from your environment, block by block.
-5. **Publish** — the tool installs (or updates) the NameBuilder plugin assembly if needed, then creates or updates the synchronous pre-operation steps on **Create** and **Update**, maintains the Update step's **PreImage** and **filtering attributes**, and optionally adds everything to a solution.
+- **No code, no manual configuration files.** Build a pattern by clicking or dragging columns into place; the tool generates and publishes the underlying JSON for you.
+- **See it before you ship it.** The live preview shows the exact assembled name against a real record from your environment as you build — including which blocks got skipped by a condition, which fell back to a default, and where truncation kicked in.
+- **Know what's already been set up.** Tables are grouped into **Configured** and **Unconfigured** everywhere you pick one, so you can see at a glance what already has a pattern and jump straight to editing it.
+- **Runs anywhere.** It's a sandboxed web tool — no Windows-only dependencies, no separate install. It follows your Power Platform ToolBox theme (light/dark) automatically.
+- **Picks up where you left off.** The tool remembers the table, view, and in-progress configuration you were last working on for each connection, so switching between environments never loses your place.
+- **Try it without connecting to anything.** Open the tool outside Power Platform ToolBox and it runs in a demo mode with sample data, so you can explore the whole designer before pointing it at a real environment.
 
-The configuration JSON is always visible and editable — **Apply**, **Copy**, **Import…**, and **Export** keep it interchangeable with hand-written configs and with the XrmToolBox configurator.
+## Features
 
-### Round-trip, defaults, and session persistence
+### Designing a pattern
 
-- **Load a deployed configuration** — selecting a table auto-loads the configuration already registered for it (prefers the Update step, falls back to Create), so you can edit what's live instead of starting blank. Use **Reload deployed** in the designer header to pull it again on demand. Auto-load can be turned off in **Field defaults…**.
-- **Reusable field defaults** — **Field defaults…** sets a default separator (prefix), suffix, date format, number format, and timezone offset. New blocks inherit them, and changing a default propagates to existing blocks that still use the previous value (the first block never gets a leading separator). "Apply defaults to all existing blocks" forces them onto every block.
-- **First-time setup, and resuming where you left off** — the very first time the tool opens against a given connection (no prior session recorded for it), a **Welcome** modal prompts you to pick a solution and a table to begin. On every later load against that same connection, the tool silently restores the last solution filter, table, and in-progress configuration — including any edits that hadn't been published yet — with no prompt. This is tracked per connection, so switching environments always resumes (or starts) independently.
-- **Persisted preferences** — field defaults, the auto-load toggle, and per-connection session state (solution/table/configuration) are saved via the ToolBox per-tool settings store (`toolboxAPI.settings`), with a `localStorage` fallback so they also persist in demo mode.
+- **Table picker** — searchable dropdown, optionally scoped to a solution, grouped into **Configured** / **Unconfigured**.
+- **View picker** — pick a system or personal view to scope both the column palette and the sample records used for preview.
+- **Column palette** — click a column to append it, or **drag it** into the pattern at any position, including between two existing blocks.
+- **Reorder blocks** by dragging (the block number or its name/type text both work as drag handles) or with the up/down buttons.
+- Per-block configuration:
+  - **Prefix / suffix** text, added only when the block produces a value
+  - **Date formats**, including `upper:` / `lower:` / `title:` casing transforms (e.g. `upper:MMM` → `JAN`) and a timezone offset for UTC-stored values
+  - **Number / currency formats**, including `K` / `M` / `B` scaling (e.g. `0.00M` → `2.50M`)
+  - **Default values** for when a column is empty
+  - **Alternate-column fallback chains** (e.g. try the contact, then the account, then a literal default)
+  - **Conditional inclusion** — simple comparisons or `anyOf` / `allOf` groups, with `equals`, `contains`, `in`, numeric comparisons, and empty checks
+  - **Per-block truncation** with a custom indicator
+- **Live preview** against a real sample record, with a running character count against your configured maximum.
 
-## How it maps to the XrmToolBox configurator
+### Managing configuration
 
-| XrmToolBox (WinForms) | PPTB (this tool) |
-| --- | --- |
-| `IOrganizationService` SDK calls | `window.dataverseAPI` Web API bridge |
-| Bundled `NameBuilder.dll` on disk | Same DLL embedded (base64) in the bundle |
-| Reflection over the DLL to find plugin types | Known type `NameBuilder.NameBuilderPlugin` registered directly |
-| `RetrieveEntityRequest` / attribute metadata | `EntityDefinitions` OData metadata queries (with graceful degradation) |
-| View + sample-record picker dialogs | View selector (scopes the column palette and record picker) |
-| Modal dialogs for conditions/alternates | Inline expanding block editors |
-| Auto-load published step config on entity select | Same (via `getPublishedConfig`), with a manual **Reload deployed** button |
-| Default field properties + propagation, saved to `%APPDATA%` | **Field defaults…** dialog, saved via `toolboxAPI.settings` |
+- **Global Configuration** — target field, global max length, plugin trace logging, and which solution publish registers components into (defaults to match your table filter, until you override it).
+- **Reusable field defaults** — set a default separator, suffix, date/number format, and timezone once; new blocks inherit them, and changing a default retroactively updates existing blocks that still use the old value.
+- **JSON view** — the generated configuration is always readable and editable: **Apply** your own edits, **Copy**, **Import** a file, or **Export** one. Fully interchangeable with hand-written or XrmToolBox-authored configurations.
+- **Auto-loads what's already deployed** when you pick a table, so you're editing what's live instead of starting from scratch — with a manual **Reload deployed** option too.
+- **Resumes your session** per connection: the last solution filter, table, view, and in-progress configuration (including unpublished edits) come back automatically the next time you open the tool against that environment. The first time you connect to a new environment, a short welcome prompt helps you pick a solution and table to start with.
 
-Step registration is identical: `SdkMessageProcessingStep` with **stage 20 (pre-operation), mode 0 (synchronous), rank 1**, unsecure configuration = the JSON, filtering attributes = all referenced columns, and a `PreImage` (alias `PreImage`, on `Target`) for the Update step whose attribute list is merged, never trimmed.
+### Publishing
 
-**Known Dataverse quirk**: updating an existing `PreImage`'s attribute list in place sometimes fails with `0x80040216: An unexpected error occurred` — a server-side platform bug, not a data or permissions problem. The XrmToolBox configurator hit the same thing; both tools work around it the same way, by deleting and recreating the image with the merged attributes instead of updating it in place.
+One click installs (or upgrades) the NameBuilder plugin assembly if needed, registers the synchronous **Create** and **Update** steps, maintains the Update step's **PreImage** and filtering attributes, and optionally adds everything to a solution for ALM. The tool detects when the server's plugin version differs from what's bundled and offers to upgrade it automatically.
 
-## Development
+## Getting started
+
+1. **Install** the tool in Power Platform ToolBox and connect to your environment.
+2. **Pick a table** — optionally filter by solution, and check whether it's already **Configured**.
+3. **Add columns** to the pattern by clicking or dragging them from the column palette.
+4. **Configure each block** — prefix/suffix, format, defaults, conditions — and watch the **live preview** update against a real record.
+5. Fine-tune **Global Configuration** and **field defaults** as needed.
+6. **Publish** — the tool handles the plugin assembly and step registration for you.
+7. Create or update a record on that table and confirm the name populates automatically.
+
+## Compatible with the XrmToolBox configurator
+
+If you or your team already uses the XrmToolBox **NameBuilder Configurator**, this tool is a drop-in alternative, not a replacement you need to migrate away from. Both produce the exact same JSON configuration and register the exact same Dataverse plugin steps — the underlying server plugin is entirely unchanged — so you can freely switch between the two tools against the same environment, or have different team members use whichever one they prefer.
+
+> **Known Dataverse quirk**: publishing an Update step's PreImage occasionally fails with `0x80040216: An unexpected error occurred` — this is a server-side platform bug, not a data or permissions problem, and both tools work around it the same way (by recreating the image instead of updating it in place). If you see it, just retry the publish.
+
+---
+
+## For developers
+
+### Development
 
 ```bash
 npm install
@@ -49,13 +74,13 @@ npm run build    # produces the single-file dist/index.html + dist/icons/
 
 Outside PPTB the tool runs in **demo mode** (sample Case and Opportunity tables) so the whole designer can be exercised without a connection; publishing is disabled. Inside PPTB it uses `toolboxAPI` / `dataverseAPI` automatically.
 
-### Testing inside Power Platform ToolBox
+#### Testing inside Power Platform ToolBox
 
 1. `npm run build`
 2. In PPTB, enable the **Debug Menu** under Settings.
 3. Load this folder as a local tool from the Debug section and connect to an environment.
 
-### Updating the embedded plugin DLL
+#### Updating the embedded plugin DLL
 
 The Dataverse plugin (`NameBuilderPlugin`) is embedded as base64 in `src/generated/plugin-assembly.ts`. After rebuilding the plugin, regenerate it:
 
@@ -67,10 +92,10 @@ node scripts/embed-plugin.mjs path/to/NameBuilder.dll 1.0.0.0 d3dc72745a5fddc3
 
 The publish dialog compares the server's installed assembly version to the embedded one and upgrades it automatically when they differ.
 
-## Publishing to the ToolBox
+### Publishing to the ToolBox
 
 1. This branch/PR must be merged to `main` first — `configurations.readmeUrl` points at the raw GitHub README on `main`, and `pptb-validate` (and the ToolBox registry) require it to actually resolve.
-2. Bump `version` in `package.json` (skip for the first release) — npm never lets you republish an already-used version number.
+2. Bump `version` in `package.json` — npm never lets you republish an already-used version number.
 3. `npm shrinkwrap` — regenerates `npm-shrinkwrap.json` from `package-lock.json` with the new version. **Required**: the PPTB Tool Submission Form's own `structure_validation` check rejects packages without it, separately from anything `pptb-validate` checks locally. Unlike `package-lock.json` (which npm always excludes from published tarballs), `npm-shrinkwrap.json` actually ships — but only because it's explicitly listed in `files` below; npm doesn't include it automatically just for existing.
 4. `npm run build`
 5. `npm run validate` (runs `pptb-validate`) — must show `✔ Validation passed` with no errors.
@@ -82,31 +107,32 @@ The `package.json` doubles as the PPTB tool manifest (`displayName`, `icon`, `ma
 
 The manifest intentionally omits `features` — NameBuilder always operates against a single Dataverse connection and never uses a secondary one, so per the manifest docs ("omit this section entirely if neither field applies") there's nothing to declare.
 
-## Project layout
+### Project layout
 
 ```
 NameBuilderToolbox/
 ├── index.html                  # entry (Vite dev / built shell)
 ├── package.json                # npm package + PPTB manifest
 ├── vite.config.ts              # single-file IIFE build for the PPTB sandbox
-├── icons/namebuilder.svg       # theme-aware manifest icon (currentColor)
+├── icons/namebuilder.svg       # manifest icon
 ├── scripts/embed-plugin.mjs    # regenerates the embedded plugin DLL module
 └── src/
-    ├── app.ts                  # bootstrap, theme, layout
-    ├── model.ts                # config schema (mirrors the plugin's JSON contract)
-    ├── engine.ts               # live-preview engine (port of the plugin runtime)
-    ├── formatting.ts           # .NET-style date/number formatting (invariant culture)
-    ├── dataverse.ts            # PPTB dataverseAPI data layer (metadata, records, caching)
-    ├── demo.ts                 # standalone demo data service
-    ├── publish.ts              # assembly install + step/PreImage/solution registration + read-back
-    ├── settings.ts             # persisted preferences (toolboxAPI.settings + localStorage)
-    ├── controller.ts           # orchestration between panels, model, and data layer
-    ├── state.ts                # topic-based store
+    ├── app.ts                        # bootstrap, theme, layout
+    ├── model.ts                      # config schema (mirrors the plugin's JSON contract)
+    ├── engine.ts                     # live-preview engine (port of the plugin runtime)
+    ├── formatting.ts                 # .NET-style date/number formatting (invariant culture)
+    ├── dataverse.ts                  # PPTB dataverseAPI data layer (metadata, records, caching)
+    ├── demo.ts                       # standalone demo data service
+    ├── publish.ts                    # assembly install + step/PreImage/solution registration + read-back
+    ├── settings.ts                   # persisted preferences (toolboxAPI.settings + localStorage)
+    ├── controller.ts                 # orchestration between panels, model, and data layer
+    ├── state.ts                      # topic-based store
     ├── generated/plugin-assembly.ts  # embedded NameBuilder.dll (auto-generated)
-    └── ui/                     # sidebar, designer, preview, welcome/publish/defaults dialogs, toasts
+    └── ui/                           # sidebar, config pane (Configuration/Properties/JSON tabs),
+                                       # welcome/publish dialogs, drag-and-drop, toasts
 ```
 
-## Documentation
+### Documentation
 
 The plugin's configuration schema, pattern examples, and administration guidance are shared with the main repo:
 
@@ -116,6 +142,6 @@ The plugin's configuration schema, pattern examples, and administration guidance
 - [Numeric & Currency Formatting](../NameBuilderPlugin/Docs/NUMERIC_CURRENCY_DOCS.md)
 - [Administrator Guide](../ADMINISTRATOR.md)
 
-## License
+### License
 
-MIT — see [LICENSE](../LICENSE).
+MIT — see [LICENSE](LICENSE).
