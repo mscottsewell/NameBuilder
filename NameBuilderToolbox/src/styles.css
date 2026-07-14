@@ -135,7 +135,9 @@ body {
 
 .app-body {
   display: grid;
-  grid-template-columns: 280px minmax(480px, 1fr);
+  /* Prefer 340px (a bit wider than before), but never below 300px and
+     never above 33% of the page — clamp() enforces the cap at any width. */
+  grid-template-columns: clamp(300px, 340px, 33%) minmax(480px, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: 12px;
   padding: 12px;
