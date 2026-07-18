@@ -112,6 +112,18 @@ export function mountPropertiesTab(root: HTMLElement, controller: Controller): v
     autoLoad.checked = state.autoLoadPublished;
     autoLoad.addEventListener('change', () => controller.setAutoLoadPublished(autoLoad.checked));
 
+    const executionOrder = el('input', {
+      class: 'input input-small',
+      type: 'number',
+      min: '1',
+      step: '1',
+      value: String(state.executionOrder),
+      oninput: () => {
+        const parsed = parseInt(executionOrder.value, 10);
+        controller.setExecutionOrder(Number.isNaN(parsed) ? 1 : parsed);
+      },
+    });
+
     // ----- Default Field Properties -----
     const defaults = state.fieldDefaults;
     const commit = (patch: Partial<FieldDefaults>) => controller.updateFieldDefaults(patch);
@@ -138,6 +150,7 @@ export function mountPropertiesTab(root: HTMLElement, controller: Controller): v
         isKnownColumn(state.config.targetField) ? undefined : 'Not found on this table — check the logical name.'),
       el('div', { class: 'field-row' },
         labeled('Global Max Length', maxLength, '(0 = no limit)'),
+        labeled('Execution Order', executionOrder, 'Plugin step rank — lower runs first'),
         el('label', { class: 'inline-label tracing-check' }, tracing, ' Enable Tracing')
       ),
       el('label', { class: 'inline-label' }, autoLoad, ' Auto-load deployed configuration on table select'),

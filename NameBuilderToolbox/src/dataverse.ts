@@ -7,6 +7,7 @@
 import type { AttributeInfo, RecordView } from './engine';
 import { mapAttributeType } from './engine';
 import { fetchPublishedConfig, getConfiguredEntityLogicalNames } from './publish';
+import type { PublishedStepInfo } from './publish';
 
 export interface EntityInfo {
   logicalName: string;
@@ -54,8 +55,8 @@ export interface DataService {
   /** Records returned by a view's own FetchXML (filters/sorts honored). */
   getViewRecords(entity: EntityInfo, view: ViewInfo): Promise<SampleRecord[]>;
   getRecordView(entity: EntityInfo, recordId: string, attributes: Map<string, AttributeInfo>, wanted: string[]): Promise<{ view: RecordView; currencySymbol: string }>;
-  /** Configuration JSON already deployed for this entity, or null if none. */
-  getPublishedConfig(entity: EntityInfo): Promise<string | null>;
+  /** Configuration + rank already deployed for this entity, or null if none. */
+  getPublishedConfig(entity: EntityInfo): Promise<PublishedStepInfo | null>;
   /** Logical names of every table that already has a NameBuilder step registered. */
   getConfiguredEntityNames(): Promise<Set<string>>;
   copyToClipboard(text: string): Promise<void>;
@@ -479,7 +480,7 @@ export class PptbDataService implements DataService {
     }
   }
 
-  async getPublishedConfig(entity: EntityInfo): Promise<string | null> {
+  async getPublishedConfig(entity: EntityInfo): Promise<PublishedStepInfo | null> {
     return fetchPublishedConfig(entity.logicalName);
   }
 

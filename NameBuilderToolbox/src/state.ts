@@ -38,6 +38,8 @@ export interface AppState {
   publishSolutionUniqueName: string | null;
   /** True once the user has explicitly chosen a Plugin Solution; until then it follows the Table filter's solution. */
   publishSolutionOverridden: boolean;
+  /** Plugin step rank ("Execution Order" in the Plugin Registration Tool); retrieved from a deployed step or defaults to 1. */
+  executionOrder: number;
 
   config: NameBuilderConfig;
   /** Index of the block whose editor is expanded, or null. */
@@ -84,6 +86,7 @@ export class Store {
       viewColumns: null,
       publishSolutionUniqueName: null,
       publishSolutionOverridden: false,
+      executionOrder: 1,
       config: createEmptyConfig(),
       expandedBlock: null,
       fieldDefaults: defaultFieldDefaults(),

@@ -38,7 +38,15 @@ export interface PublishRequest {
   registerCreate: boolean;
   registerUpdate: boolean;
   solutionUniqueName?: string;
+  /** Plugin step rank ("Execution Order" in the Plugin Registration Tool). */
+  executionOrder: number;
   onProgress?: (message: string) => void;
+}
+
+/** A deployed step's unsecure configuration plus its rank ("Execution Order"). */
+export interface PublishedStepInfo {
+  configurationJson: string;
+  rank: number;
 }
 
 export interface PublishOutcome {
@@ -172,12 +180,12 @@ export async function installOrUpdateAssembly(
 }
 
 /**
- * Retrieves the configuration JSON already deployed for an entity, so the
- * designer can round-trip an existing setup. Prefers the Update step's
- * unsecure configuration and falls back to the Create step. Returns null when
- * the plugin isn't installed or no step exists for the entity.
+ * Retrieves the configuration JSON and rank ("Execution Order") already
+ * deployed for an entity, so the designer can round-trip an existing setup.
+ * Prefers the Update step and falls back to the Create step. Returns null
+ * when the plugin isn't installed or no step exists for the entity.
  */
-export async function fetchPublishedConfig(entityLogicalName: string): Promise<string | null> {
+export async function fetchPublishedConfig(entityLogicalName: string): Promise<PublishedStepInfo | null> {
   const status = await getServerPluginStatus();
   if (!status.installed || !status.pluginTypeId) return null;
   const pluginTypeId = status.pluginTypeId;
@@ -187,12 +195,14 @@ export async function fetchPublishedConfig(entityLogicalName: string): Promise<s
       const messageId = await getSdkMessageId(messageName);
       const filterId = await getSdkMessageFilterId(messageId, entityLogicalName);
       const steps = await api().queryData(
-        `sdkmessageprocessingsteps?$select=configuration` +
+        `sdkmessageprocessingsteps?$select=configuration,rank` +
           `&$filter=_eventhandler_value eq ${pluginTypeId} and _sdkmessageid_value eq ${messageId} and _sdkmessagefilterid_value eq ${filterId}`
       );
-      const configuration = steps.value?.[0]?.configuration;
+      const step = steps.value?.[0];
+      const configuration = step?.configuration;
       if (typeof configuration === 'string' && configuration.trim()) {
-        return configuration;
+        const rank = typeof step?.rank === 'number' ? step.rank : 1;
+        return { configurationJson: configuration, rank };
       }
     } catch {
       // Entity may not support this message (no filter) — try the next one.
@@ -241,6 +251,7 @@ async function ensureStep(
   messageName: 'Create' | 'Update',
   configurationJson: string,
   attributeCsv: string,
+  rank: number,
   onProgress?: (message: string) => void
 ): Promise<{ stepId: string; created: boolean }> {
   const dv = api();
@@ -258,6 +269,7 @@ async function ensureStep(
     await dv.update('sdkmessageprocessingstep', stepId, {
       configuration: configurationJson,
       filteringattributes: attributeCsv || null,
+      rank,
     });
     return { stepId, created: false };
   }
@@ -271,7 +283,7 @@ async function ensureStep(
     mode: 0, // synchronous
     stage: 20, // pre-operation
     supporteddeployment: 0, // server only
-    rank: 1,
+    rank,
     'sdkmessageid@odata.bind': `/sdkmessages(${messageId})`,
     'sdkmessagefilterid@odata.bind': `/sdkmessagefilters(${filterId})`,
     'eventhandler_plugintype@odata.bind': `/plugintypes(${pluginTypeId})`,
@@ -388,12 +400,12 @@ export async function publishConfiguration(request: PublishRequest): Promise<Pub
   const outcome: PublishOutcome = { steps: [], assemblyUploaded: uploaded };
 
   if (request.registerCreate) {
-    const step = await ensureStep(pluginTypeId, entity, 'Create', request.configurationJson, attributeCsv, onProgress);
+    const step = await ensureStep(pluginTypeId, entity, 'Create', request.configurationJson, attributeCsv, request.executionOrder, onProgress);
     outcome.steps.push({ message: 'Create', ...step });
   }
 
   if (request.registerUpdate) {
-    const step = await ensureStep(pluginTypeId, entity, 'Update', request.configurationJson, attributeCsv, onProgress);
+    const step = await ensureStep(pluginTypeId, entity, 'Update', request.configurationJson, attributeCsv, request.executionOrder, onProgress);
     await ensurePreImage(step.stepId, request.attributes, onProgress);
     outcome.steps.push({ message: 'Update', ...step });
   }

@@ -8,6 +8,7 @@ import type { AttributeInfo, RecordView } from './engine';
 import type { DataService, EntityInfo, SampleRecord, SolutionInfo, ViewInfo } from './dataverse';
 import { mapAttributeType } from './engine';
 import { selectColumnFor } from './dataverse';
+import type { PublishedStepInfo } from './publish';
 
 interface DemoAttr {
   name: string;
@@ -199,7 +200,7 @@ export class DemoDataService implements DataService {
     return { view, currencySymbol: String(raw['transactioncurrencysymbol'] ?? '') };
   }
 
-  async getPublishedConfig(): Promise<string | null> {
+  async getPublishedConfig(): Promise<PublishedStepInfo | null> {
     // No server in demo mode; the designer always starts from a blank pattern.
     return null;
   }

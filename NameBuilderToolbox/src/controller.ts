@@ -57,6 +57,7 @@ export class Controller {
         await this.selectEntity(entity, {
           restoreConfig: session.config ?? undefined,
           restoreViewId: session.viewId ?? undefined,
+          restoreExecutionOrder: session.executionOrder,
         });
       }
     }
@@ -73,6 +74,7 @@ export class Controller {
       viewId: this.state.selectedViewId,
       publishSolution: this.state.publishSolutionUniqueName,
       publishSolutionOverridden: this.state.publishSolutionOverridden,
+      executionOrder: this.state.executionOrder,
     };
     saveSessionByConnection(this.state.sessionByConnection);
   }
@@ -140,7 +142,7 @@ export class Controller {
    * auto-load-published / inferred-maxLength are skipped, since it may
    * contain unpublished edits.
    */
-  async selectEntity(entity: EntityInfo, options?: { restoreConfig?: NameBuilderConfig; restoreViewId?: string }): Promise<void> {
+  async selectEntity(entity: EntityInfo, options?: { restoreConfig?: NameBuilderConfig; restoreViewId?: string; restoreExecutionOrder?: number }): Promise<void> {
     if (this.state.selectedEntity?.logicalName === entity.logicalName && !options?.restoreConfig) return;
     this.state.selectedEntity = entity;
     this.state.attributes = new Map();
@@ -152,10 +154,13 @@ export class Controller {
       this.state.config = cloneConfig(options.restoreConfig);
       this.state.config.entity = entity.logicalName;
       if (!this.state.config.targetField) this.state.config.targetField = entity.primaryNameAttribute;
+      this.state.executionOrder = options.restoreExecutionOrder ?? 1;
     } else {
       this.state.config = createEmptyConfig();
       this.state.config.entity = entity.logicalName;
       this.state.config.targetField = entity.primaryNameAttribute;
+      // Defaults to 1; overwritten below by tryLoadPublishedConfig if a step already exists.
+      this.state.executionOrder = 1;
     }
     this.state.expandedBlock = null;
     this.state.sampleRecords = [];
@@ -235,6 +240,12 @@ export class Controller {
     return null;
   }
 
+  /** Sets the plugin step rank ("Execution Order") used when publishing (Global Configuration). */
+  setExecutionOrder(value: number): void {
+    this.state.executionOrder = Number.isFinite(value) && value >= 1 ? Math.trunc(value) : 1;
+    this.persistSessionDebounced();
+  }
+
   /** Changes the target column the plugin writes to (Global Configuration). */
   setTargetField(logicalName: string): void {
     this.state.config.targetField = logicalName.trim() || (this.state.selectedEntity?.primaryNameAttribute ?? 'name');
@@ -247,24 +258,25 @@ export class Controller {
    * deployed; when true (manual reload), the user is always told the result.
    */
   private async tryLoadPublishedConfig(entity: EntityInfo, announce: boolean): Promise<void> {
-    let json: string | null = null;
+    let info: { configurationJson: string; rank: number } | null = null;
     try {
-      json = await this.state.service.getPublishedConfig(entity);
+      info = await this.state.service.getPublishedConfig(entity);
     } catch (error) {
       if (announce) toast(this.state.service, 'error', 'Could not read deployed configuration', (error as Error).message);
       return;
     }
 
-    if (!json) {
+    if (!info) {
       if (announce) toast(this.state.service, 'info', 'No deployed configuration', `No NameBuilder step is registered for ${entity.displayName}.`);
       return;
     }
 
     try {
-      const parsed = parseConfig(json);
+      const parsed = parseConfig(info.configurationJson);
       parsed.entity = entity.logicalName;
       if (!parsed.targetField) parsed.targetField = entity.primaryNameAttribute;
       this.state.config = parsed;
+      this.state.executionOrder = info.rank;
       this.state.expandedBlock = null;
       this.store.emit('config');
       toast(this.state.service, 'success', 'Loaded deployed configuration', `${parsed.fields.length} block(s) from Dataverse.`);

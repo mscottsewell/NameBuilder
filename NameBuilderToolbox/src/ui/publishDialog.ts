@@ -62,7 +62,8 @@ export function openPublishDialog(controller: Controller): void {
     statusLine,
     el('div', { class: 'publish-summary' },
       el('div', {}, el('strong', {}, 'Target column: '), `${state.config.targetField}`),
-      el('div', {}, el('strong', {}, 'Trigger columns: '), attributes.join(', ') || '(none)')
+      el('div', {}, el('strong', {}, 'Trigger columns: '), attributes.join(', ') || '(none)'),
+      el('div', {}, el('strong', {}, 'Execution order: '), String(state.executionOrder))
     ),
     el('div', { class: 'publish-options' },
       createCheck.wrapper,
@@ -116,6 +117,7 @@ export function openPublishDialog(controller: Controller): void {
         registerCreate: createCheck.input.checked,
         registerUpdate: updateCheck.input.checked,
         solutionUniqueName: solutionSelect.value || undefined,
+        executionOrder: state.executionOrder,
         onProgress: appendLog,
       });
       const summary = outcome.steps

@@ -98,6 +98,8 @@ export interface SessionState {
   publishSolution?: string | null;
   /** True once the user has explicitly chosen a Plugin Solution; until then it follows the Table filter's solution. */
   publishSolutionOverridden?: boolean;
+  /** Plugin step rank ("Execution Order" in the Plugin Registration Tool). */
+  executionOrder?: number;
 }
 
 /** Deep-clone a config (used for undo-safe edits and import). */

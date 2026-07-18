@@ -37,7 +37,7 @@ Everything below happens in one screen: a table/column browser on the left, and 
 
 ### Managing configuration
 
-- **Global Configuration** — target field, global max length, plugin trace logging, and which solution publish registers components into (defaults to match your table filter, until you override it).
+- **Global Configuration** — target field, global max length, plugin trace logging, the plugin step's execution order (retrieved from an existing registration when one exists, otherwise defaults to 1), and which solution publish registers components into (defaults to match your table filter, until you override it).
 - **Reusable field defaults** — set a default separator, suffix, date/number format, and timezone once; new blocks inherit them, and changing a default retroactively updates existing blocks that still use the old value.
 - **JSON view** — the generated configuration is always readable and editable: **Apply** your own edits, **Copy**, **Import** a file, or **Export** one. Fully interchangeable with hand-written or XrmToolBox-authored configurations.
 - **Auto-loads what's already deployed** when you pick a table, so you're editing what's live instead of starting from scratch — with a manual **Reload deployed** option too.
