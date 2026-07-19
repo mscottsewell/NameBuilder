@@ -1,16 +1,13 @@
 {
   "name": "@mscottsewell/namebuilder-toolbox",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
       "name": "@mscottsewell/namebuilder-toolbox",
-      "version": "1.2.2",
+      "version": "1.2.3",
       "license": "MIT",
-      "dependencies": {
-        "lodash": "^4.18.1"
-      },
       "devDependencies": {
         "@pptb/types": "^1.2.3",
         "shx": "^0.4.0",
@@ -1101,12 +1098,6 @@
       "integrity": "sha1-6PvzdNxVb/iUehDcsFctYz8s+hA=",
       "dev": true,
       "license": "ISC"
-    },
-    "node_modules/lodash": {
-      "version": "4.18.1",
-      "resolved": "https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/lodash/-/lodash-4.18.1.tgz",
-      "integrity": "sha1-/ytmwfYybVlRPeJAe/iBQ5gSdxw=",
-      "license": "MIT"
     },
     "node_modules/merge2": {
       "version": "1.4.1",

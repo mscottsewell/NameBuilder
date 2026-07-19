@@ -1,6 +1,6 @@
 {
   "name": "@mscottsewell/namebuilder-toolbox",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "displayName": "NameBuilder",
   "description": "Visually design automatic record-name patterns for Dataverse and publish the NameBuilder plugin steps directly from Power Platform ToolBox.",
   "main": "index.html",
@@ -50,8 +50,5 @@
     "shx": "^0.4.0",
     "typescript": "^5.5.0",
     "vite": "^5.4.0"
-  },
-  "dependencies": {
-    "lodash": "^4.18.1"
   }
 }
