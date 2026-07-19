@@ -9,5 +9,6 @@
       "url": "./NameBuilderPlugin/Docs/plugin-config.schema.json"
     }
   ],
-  "sarif-viewer.connectToGithubCodeScanning": "off"
+  "sarif-viewer.connectToGithubCodeScanning": "off",
+  "codeQL.githubDatabase.update": "never"
 }
