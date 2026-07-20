@@ -112,7 +112,13 @@ export class DemoDataService implements DataService {
   async listSolutions(): Promise<SolutionInfo[]> {
     return [
       { id: 'demo-solution', uniqueName: 'demosolution', friendlyName: 'Demo Solution', isManaged: false },
+      { id: 'demo-sales', uniqueName: 'demosales', friendlyName: 'Sales Customizations', isManaged: false },
+      { id: 'demo-managed', uniqueName: 'demomanaged', friendlyName: 'Contoso Core (ISV)', isManaged: true },
     ];
+  }
+
+  async getPreferredSolutionId(): Promise<string | null> {
+    return 'demo-solution';
   }
 
   async getSolutionEntityIds(): Promise<Set<string>> {

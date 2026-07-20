@@ -9,6 +9,7 @@ import type { Controller } from '../controller';
 import { collectReferencedAttributes, serializeConfig } from '../model';
 import { EMBEDDED_PLUGIN_VERSION, getServerPluginStatus, publishConfiguration } from '../publish';
 import { toast } from './toast';
+import { appendSolutionOptions } from './solutionOptions';
 
 export function openPublishDialog(controller: Controller): void {
   const state = controller.store.state;
@@ -32,9 +33,7 @@ export function openPublishDialog(controller: Controller): void {
 
   const solutionSelect = el('select', { class: 'select' });
   solutionSelect.append(el('option', { value: '' }, 'Default solution (no solution)'));
-  for (const solution of state.solutions.filter((s) => !s.isManaged)) {
-    solutionSelect.append(el('option', { value: solution.uniqueName }, solution.friendlyName));
-  }
+  appendSolutionOptions(solutionSelect, state.solutions, state.preferredSolutionId, (s) => s.uniqueName, { includeManaged: false });
   // Preselect the effective Plugin Solution from Global Configuration
   // (the user's explicit choice, or the Solution & Table filter as a default).
   solutionSelect.value = controller.getEffectivePublishSolution() ?? '';

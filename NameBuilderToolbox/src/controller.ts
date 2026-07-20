@@ -108,6 +108,7 @@ export class Controller {
   async loadSolutions(): Promise<void> {
     try {
       this.state.solutions = await this.state.service.listSolutions();
+      this.state.preferredSolutionId = await this.state.service.getPreferredSolutionId();
       this.store.emit('entities');
     } catch {
       /* solution filter stays hidden if solutions can't be listed */

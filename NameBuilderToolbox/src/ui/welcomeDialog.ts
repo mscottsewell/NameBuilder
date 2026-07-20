@@ -10,6 +10,7 @@ import { clear, el } from './dom';
 import type { Controller } from '../controller';
 import type { EntityInfo } from '../dataverse';
 import { renderGroupedEntities } from './entityList';
+import { appendSolutionOptions } from './solutionOptions';
 
 export function openWelcomeDialog(controller: Controller): void {
   const { store } = controller;
@@ -55,11 +56,7 @@ export function openWelcomeDialog(controller: Controller): void {
   function renderSolutions(): void {
     clear(solutionSelect);
     solutionSelect.append(el('option', { value: '' }, 'All solutions'));
-    for (const solution of state.solutions) {
-      solutionSelect.append(
-        el('option', { value: solution.id }, `${solution.friendlyName}${solution.isManaged ? ' (managed)' : ''}`)
-      );
-    }
+    appendSolutionOptions(solutionSelect, state.solutions, state.preferredSolutionId, (s) => s.id);
     solutionSelect.value = state.solutionFilterId ?? '';
   }
 

@@ -45,6 +45,8 @@ export interface DataService {
   readonly isDemo: boolean;
   getConnectionName(): Promise<string>;
   listSolutions(): Promise<SolutionInfo[]>;
+  /** Solution id of the user's preferred solution (preferredsolution table), or null. */
+  getPreferredSolutionId(): Promise<string | null>;
   /** Entity metadataIds contained in a solution (componenttype 1 = Entity). */
   getSolutionEntityIds(solutionId: string): Promise<Set<string>>;
   listEntities(): Promise<EntityInfo[]>;
@@ -187,6 +189,18 @@ export class PptbDataService implements DataService {
         isManaged: s.ismanaged === true,
       }))
       .sort((a, b) => a.friendlyName.localeCompare(b.friendlyName));
+  }
+
+  async getPreferredSolutionId(): Promise<string | null> {
+    try {
+      // preferredsolution is user-owned, so the query returns the current
+      // user's row; the table doesn't exist on older environments (hence catch).
+      const result = await api().queryData('preferredsolutions?$select=_solutionid_value&$top=1');
+      const id = result.value?.[0]?.['_solutionid_value'];
+      return typeof id === 'string' && id ? id : null;
+    } catch {
+      return null;
+    }
   }
 
   async getSolutionEntityIds(solutionId: string): Promise<Set<string>> {

@@ -14,6 +14,7 @@ import type { Controller } from '../controller';
 import type { FieldDefaults } from '../model';
 import { serializeConfig } from '../model';
 import { toast } from './toast';
+import { appendSolutionOptions } from './solutionOptions';
 
 export function mountPropertiesTab(root: HTMLElement, controller: Controller): void {
   const { store } = controller;
@@ -70,9 +71,7 @@ export function mountPropertiesTab(root: HTMLElement, controller: Controller): v
       },
     });
     solutionSelect.append(el('option', { value: '' }, '(Default solution)'));
-    for (const solution of state.solutions.filter((s) => !s.isManaged)) {
-      solutionSelect.append(el('option', { value: solution.uniqueName }, solution.friendlyName));
-    }
+    appendSolutionOptions(solutionSelect, state.solutions, state.preferredSolutionId, (s) => s.uniqueName, { includeManaged: false });
     solutionSelect.value = controller.getEffectivePublishSolution() ?? '';
 
     const targetField = el('input', {

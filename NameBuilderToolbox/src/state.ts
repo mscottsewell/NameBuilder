@@ -16,6 +16,8 @@ export interface AppState {
   connectionName: string;
 
   solutions: SolutionInfo[];
+  /** Solution id of the user's preferred solution (from the preferredsolution table), or null. */
+  preferredSolutionId: string | null;
   solutionFilterId: string | null;
   solutionEntityIds: Set<string> | null;
   entitySearch: string;
@@ -72,6 +74,7 @@ export class Store {
       service,
       connectionName: '',
       solutions: [],
+      preferredSolutionId: null,
       solutionFilterId: null,
       solutionEntityIds: null,
       entitySearch: '',

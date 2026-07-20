@@ -12,6 +12,7 @@ import type { AttributeInfo } from '../engine';
 import type { EntityInfo } from '../dataverse';
 import { NEW_FIELD_DRAG_TYPE } from './dragTypes';
 import { renderGroupedEntities } from './entityList';
+import { appendSolutionOptions } from './solutionOptions';
 
 const TYPE_BADGES: Record<string, string> = {
   string: 'Aa',
@@ -169,11 +170,7 @@ export function mountSidebar(root: HTMLElement, controller: Controller): void {
   function renderSolutions(): void {
     clear(solutionSelect);
     solutionSelect.append(el('option', { value: '' }, 'All solutions'));
-    for (const solution of state.solutions) {
-      solutionSelect.append(
-        el('option', { value: solution.id }, `${solution.friendlyName}${solution.isManaged ? ' (managed)' : ''}`)
-      );
-    }
+    appendSolutionOptions(solutionSelect, state.solutions, state.preferredSolutionId, (s) => s.id);
     solutionSelect.value = state.solutionFilterId ?? '';
   }
 
