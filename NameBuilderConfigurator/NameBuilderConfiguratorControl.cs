@@ -2055,117 +2055,122 @@ namespace NameBuilderConfigurator
 
             using (var dialog = new PublishTargetsDialog(entityDisplayName, cachedSteps.insertStep != null, cachedSteps.updateStep != null))
             {
-                if (dialog.ShowDialog() != DialogResult.OK)
-                {
-                    return;
-                }
-
-                if (!dialog.PublishInsert && !dialog.PublishUpdate)
-                {
-                    return;
-                }
-
-                var preference = GetConnectionPreference();
-                var solutionId = preference?.PluginSolutionId;
-                var selectedSolutionItem = preference != null
-                    ? solutions?.FirstOrDefault(s => s.SolutionId == solutionId)
-                    : null;
-
-                Guid? finalSolutionId = solutionId;
-                string finalSolutionUniqueName = preference?.PluginSolutionUniqueName;
-
-                // Only prompt if Default Solution is selected or no solution is set yet
-                if (!solutionId.HasValue || IsDefaultSolution(selectedSolutionItem))
-                {
-                    using (var solutionDialog = new PluginSolutionSelectionDialog(solutions, solutionId))
-                    {
-                        if (solutionDialog.ShowDialog(this) != DialogResult.OK)
-                        {
-                            return;
-                        }
-
-                        finalSolutionId = solutionDialog.SelectedSolutionId;
-                        finalSolutionUniqueName = solutionDialog.SelectedSolutionUniqueName;
-
-                        PersistConnectionPreference(pref =>
-                        {
-                            pref.PluginSolutionId = finalSolutionId;
-                            pref.PluginSolutionUniqueName = finalSolutionUniqueName;
-                        });
-                    }
-                }
-
-                var context = new PublishContext
-                {
-                    PluginTypeId = activePluginType.PluginTypeId,
-                    PluginTypeName = activePluginType.Name ?? activePluginType.TypeName,
-                    EntityLogicalName = currentEntityLogicalName,
-                    EntityDisplayName = entityDisplayName,
-                    JsonPayload = json,
-                    AttributeNames = attributeSet.ToList(),
-                    PublishInsert = dialog.PublishInsert,
-                    PublishUpdate = dialog.PublishUpdate,
-                    SolutionId = finalSolutionId
-                };
-
-                publishToolButton.Enabled = false;
-
-                var publishContext = context;
-
-                WorkAsync(new WorkAsyncInfo
-                    {
-                        Message = "Publishing configuration...",
-                        AsyncArgument = publishContext,
-                        Work = (worker, args) =>
-                        {
-                            var ctx = (PublishContext)args.Argument;
-                            args.Result = ExecutePublish(ctx);
-                        },
-                        PostWorkCallBack = (args) =>
-                        {
-                            publishToolButton.Enabled = true;
-                            SetActiveRegistryStep(activeRegistryStep);
-
-                            if (args.Error != null)
-                            {
-                                ShowPublishError(args.Error);
-                                return;
-                            }
-
-                            var ctx = publishContext;
-                            if (args.Result is PublishResult publishResult)
-                            {
-                                UpdateCachedStepsAfterPublish(publishResult);
-
-                                if (activeRegistryStep != null)
-                                {
-                                    activeRegistryStep.UnsecureConfiguration = ctx.JsonPayload;
-                                    if (publishResult.StepMetadata != null)
-                                    {
-                                        var updated = publishResult.StepMetadata
-                                            .FirstOrDefault(s => s.StepId == activeRegistryStep.StepId);
-                                        if (updated != null)
-                                        {
-                                            activeRegistryStep.FilteringAttributes = updated.FilteringAttributes;
-                                        }
-                                    }
-                                }
-
-                                if (publishResult.UpdatedSteps.Count > 0)
-                                {
-                                    statusLabel.Text = $"Published to: {string.Join(", ", publishResult.UpdatedSteps)}";
-                                }
-                                else
-                                {
-                                    statusLabel.Text = "Configuration published.";
-                                }
-                                statusLabel.ForeColor = Color.ForestGreen;
-
-                                CaptureCommittedSnapshot();
-                            }
-                        }
-                    });
+                dialog.PublishRequested += (s, e) =>
+                    StartPublish(dialog, entityDisplayName, json, attributeSet.ToList());
+                dialog.ShowDialog(this);
             }
+        }
+
+        private void StartPublish(
+            PublishTargetsDialog dialog,
+            string entityDisplayName,
+            string json,
+            List<string> attributeNames)
+        {
+            var preference = GetConnectionPreference();
+            var solutionId = preference?.PluginSolutionId;
+            var selectedSolutionItem = preference != null
+                ? solutions?.FirstOrDefault(s => s.SolutionId == solutionId)
+                : null;
+
+            Guid? finalSolutionId = solutionId;
+            string finalSolutionUniqueName = preference?.PluginSolutionUniqueName;
+
+            // Only prompt if Default Solution is selected or no solution is set yet
+            if (!solutionId.HasValue || IsDefaultSolution(selectedSolutionItem))
+            {
+                using (var solutionDialog = new PluginSolutionSelectionDialog(solutions, solutionId))
+                {
+                    if (solutionDialog.ShowDialog(this) != DialogResult.OK)
+                    {
+                        return;
+                    }
+
+                    finalSolutionId = solutionDialog.SelectedSolutionId;
+                    finalSolutionUniqueName = solutionDialog.SelectedSolutionUniqueName;
+
+                    PersistConnectionPreference(pref =>
+                    {
+                        pref.PluginSolutionId = finalSolutionId;
+                        pref.PluginSolutionUniqueName = finalSolutionUniqueName;
+                    });
+                }
+            }
+
+            var publishContext = new PublishContext
+            {
+                PluginTypeId = activePluginType.PluginTypeId,
+                PluginTypeName = activePluginType.Name ?? activePluginType.TypeName,
+                EntityLogicalName = currentEntityLogicalName,
+                EntityDisplayName = entityDisplayName,
+                JsonPayload = json,
+                AttributeNames = attributeNames,
+                PublishInsert = dialog.PublishInsert,
+                PublishUpdate = dialog.PublishUpdate,
+                SolutionId = finalSolutionId
+            };
+
+            dialog.SetPublishing(true);
+            publishToolButton.Enabled = false;
+
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = "Publishing configuration...",
+                AsyncArgument = publishContext,
+                Work = (worker, args) =>
+                {
+                    var ctx = (PublishContext)args.Argument;
+                    args.Result = ExecutePublish(ctx);
+                },
+                PostWorkCallBack = (args) =>
+                {
+                    publishToolButton.Enabled = true;
+                    SetActiveRegistryStep(activeRegistryStep);
+
+                    if (args.Error != null)
+                    {
+                        dialog.SetPublishing(false);
+                        ShowPublishError(args.Error);
+                        return;
+                    }
+
+                    if (args.Result is PublishResult publishResult)
+                    {
+                        UpdateCachedStepsAfterPublish(publishResult);
+
+                        if (activeRegistryStep != null)
+                        {
+                            activeRegistryStep.UnsecureConfiguration = publishContext.JsonPayload;
+                            if (publishResult.StepMetadata != null)
+                            {
+                                var updated = publishResult.StepMetadata
+                                    .FirstOrDefault(s => s.StepId == activeRegistryStep.StepId);
+                                if (updated != null)
+                                {
+                                    activeRegistryStep.FilteringAttributes = updated.FilteringAttributes;
+                                }
+                            }
+                        }
+
+                        if (publishResult.UpdatedSteps.Count > 0)
+                        {
+                            statusLabel.Text = $"Published to: {string.Join(", ", publishResult.UpdatedSteps)}";
+                        }
+                        else
+                        {
+                            statusLabel.Text = "Configuration published.";
+                        }
+                        statusLabel.ForeColor = Color.ForestGreen;
+
+                        CaptureCommittedSnapshot();
+                        dialog.CompletePublish();
+                        return;
+                    }
+
+                    dialog.SetPublishing(false);
+                    ShowPublishError(new InvalidOperationException("Publishing completed without a result."));
+                }
+            });
         }
 
         private bool ShouldShowPluginPrecheckDialog(PluginPublishPrecheckInfo info)
@@ -4909,7 +4914,7 @@ namespace NameBuilderConfigurator
                 Location = new Point(85, y + 5),
                 Size = new Size(200, 23)
             };
-            helpToolTip?.SetToolTip(defaultDateFormatTextBox, "Date or datetime format string applied to new temporal blocks.");
+            helpToolTip?.SetToolTip(defaultDateFormatTextBox, "Date or datetime format string applied to new temporal blocks. Use ddd for Mon or upper:ddd for MON.");
             defaultDateFormatTextBox.TextChanged += (s, e) => {
                 var oldValue = settings.DefaultDateFormat;
                 settings.DefaultDateFormat = string.IsNullOrWhiteSpace(defaultDateFormatTextBox.Text) ? null : defaultDateFormatTextBox.Text;
@@ -4919,7 +4924,7 @@ namespace NameBuilderConfigurator
             };
             var dateFormatHint = new System.Windows.Forms.Label
             {
-                Text = "e.g., yyyy-MM-dd or dd/MM/yyyy",
+                Text = "e.g., yyyy-MM-dd, ddd (Mon), upper:ddd (MON)",
                 Location = new Point(85, y + 30),
                 AutoSize = true,
                 ForeColor = Color.Gray,
@@ -5040,7 +5045,7 @@ namespace NameBuilderConfigurator
                 
                 var formatHintLabel = new System.Windows.Forms.Label
                 {
-                    Text = "Date: yyyy-MM-dd | Number: #,##0.00 | Scale: 0.0K, 0.00M",
+                    Text = "Date: yyyy-MM-dd, ddd (Mon), upper:ddd (MON) | Number: #,##0.00",
                     Location = new Point(controlX, y),
                     Size = new Size(contentWidth, 30),
                     ForeColor = Color.Gray,
@@ -7500,5 +7505,3 @@ class ConnectionPreference
     public Guid? PluginSolutionId { get; set; }
     public string PluginSolutionUniqueName { get; set; }
 }
-
-

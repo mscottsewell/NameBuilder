@@ -12,6 +12,11 @@ namespace NameBuilderConfigurator
         private readonly CheckBox insertCheckBox;
         private readonly CheckBox updateCheckBox;
         private readonly Button okButton;
+        private readonly Button closeButton;
+        private bool isPublishing;
+
+        /// <summary>Raised after the publish target selection has been validated.</summary>
+        public event EventHandler PublishRequested;
 
         /// <summary>True if the Create (Insert) step should be published/updated.</summary>
         public bool PublishInsert => insertCheckBox.Checked;
@@ -80,7 +85,6 @@ namespace NameBuilderConfigurator
             okButton = new Button
             {
                 Text = "Publish",
-                DialogResult = DialogResult.OK,
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
                 Location = new Point(210, 180)
             };
@@ -89,11 +93,13 @@ namespace NameBuilderConfigurator
                 if (!insertCheckBox.Checked && !updateCheckBox.Checked)
                 {
                     MessageBox.Show("Select at least one step to publish.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    DialogResult = DialogResult.None;
+                    return;
                 }
+
+                PublishRequested?.Invoke(this, EventArgs.Empty);
             };
 
-            var cancelButton = new Button
+            closeButton = new Button
             {
                 Text = "Cancel",
                 DialogResult = DialogResult.Cancel,
@@ -102,10 +108,40 @@ namespace NameBuilderConfigurator
             };
 
             Controls.Add(okButton);
-            Controls.Add(cancelButton);
+            Controls.Add(closeButton);
 
             AcceptButton = okButton;
-            CancelButton = cancelButton;
+            CancelButton = closeButton;
+            FormClosing += (s, e) =>
+            {
+                if (isPublishing)
+                {
+                    e.Cancel = true;
+                }
+            };
+        }
+
+        /// <summary>Updates the dialog controls while a publish operation is running.</summary>
+        public void SetPublishing(bool publishing)
+        {
+            isPublishing = publishing;
+            insertCheckBox.Enabled = !publishing;
+            updateCheckBox.Enabled = !publishing;
+            okButton.Enabled = !publishing;
+            closeButton.Enabled = !publishing;
+        }
+
+        /// <summary>Changes the completed dialog to offer Close as its default action.</summary>
+        public void CompletePublish()
+        {
+            isPublishing = false;
+            insertCheckBox.Enabled = false;
+            updateCheckBox.Enabled = false;
+            okButton.Visible = false;
+            closeButton.Text = "Close";
+            closeButton.Enabled = true;
+            AcceptButton = closeButton;
+            closeButton.Focus();
         }
     }
 }
