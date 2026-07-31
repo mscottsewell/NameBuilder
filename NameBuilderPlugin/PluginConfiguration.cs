@@ -309,9 +309,15 @@ namespace NameBuilder
         /// </summary>
         public string Suffix { get; set; }
 
-        public PatternPart()
+        /// <summary>
+        /// Gets the fallback format for a field type when no explicit format is configured.
+        /// </summary>
+        public static string GetDefaultFormat(string fieldType)
         {
-            DateFormat = "yyyy-MM-dd";
+            return string.Equals(fieldType, "date", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(fieldType, "datetime", StringComparison.OrdinalIgnoreCase)
+                ? "yyyy-MM-dd"
+                : null;
         }
     }
 
@@ -512,6 +518,10 @@ namespace NameBuilder
             if (segments.Length > 2)
             {
                 part.DateFormat = string.Join(":", segments, 2, segments.Length - 2).Trim();
+            }
+            else
+            {
+                part.DateFormat = PatternPart.GetDefaultFormat(part.FieldType);
             }
 
             return part;
@@ -752,7 +762,7 @@ namespace NameBuilder
                     IsField = true,
                     FieldName = fieldConfig.Field,
                     FieldType = fieldType,
-                    DateFormat = fieldConfig.Format ?? "yyyy-MM-dd",
+                    DateFormat = fieldConfig.Format ?? PatternPart.GetDefaultFormat(fieldType),
                     MaxFieldLength = fieldConfig.MaxLength,
                     TruncationIndicator = fieldConfig.TruncationIndicator ?? "...",
                     DefaultValue = fieldConfig.Default,
@@ -767,4 +777,3 @@ namespace NameBuilder
             return parts;
         }
     }
-

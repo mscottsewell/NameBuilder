@@ -210,12 +210,13 @@ namespace NameBuilder
         /// </summary>
         private static PatternPart BuildAlternatePatternPart(FieldConfiguration altConfig)
         {
+            var fieldType = altConfig.Type ?? PatternParser.InferFieldType(altConfig.Field);
             return new PatternPart
             {
                 IsField = true,
                 FieldName = altConfig.Field,
-                FieldType = altConfig.Type ?? PatternParser.InferFieldType(altConfig.Field),
-                DateFormat = altConfig.Format ?? "yyyy-MM-dd",
+                FieldType = fieldType,
+                DateFormat = altConfig.Format ?? PatternPart.GetDefaultFormat(fieldType),
                 MaxFieldLength = altConfig.MaxLength,
                 TruncationIndicator = altConfig.TruncationIndicator ?? "...",
                 DefaultValue = altConfig.Default,
