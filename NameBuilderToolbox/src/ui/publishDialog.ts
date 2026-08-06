@@ -54,7 +54,10 @@ export function openPublishDialog(controller: Controller): void {
   const closeButton = el('button', {
     class: 'btn btn-ghost',
     onclick: () => overlay.remove(),
-  }, 'Close');
+  }, 'Close') as HTMLButtonElement;
+
+  let publishing = false;
+  let publishComplete = false;
 
   const dialog = el('div', { class: 'modal' },
     el('h2', {}, `Publish to ${entity.displayName}`),
@@ -78,7 +81,13 @@ export function openPublishDialog(controller: Controller): void {
 
   overlay.append(dialog);
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) overlay.remove();
+    if (e.target === overlay && !publishing) overlay.remove();
+  });
+  dialog.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && publishComplete) {
+      e.preventDefault();
+      overlay.remove();
+    }
   });
   document.body.append(overlay);
 
@@ -106,7 +115,12 @@ export function openPublishDialog(controller: Controller): void {
       toast(state.service, 'warning', 'Select at least one step', 'Choose Create, Update, or both.');
       return;
     }
+    publishing = true;
     publishButton.disabled = true;
+    closeButton.disabled = true;
+    createCheck.input.disabled = true;
+    updateCheck.input.disabled = true;
+    solutionSelect.disabled = true;
     clear(log);
     try {
       const outcome = await publishConfiguration({
@@ -124,11 +138,23 @@ export function openPublishDialog(controller: Controller): void {
         .join(', ');
       appendLog(`✔ ${summary}`);
       toast(state.service, 'success', 'Configuration published', summary);
+      publishComplete = true;
+      publishButton.hidden = true;
+      closeButton.className = 'btn btn-primary';
+      closeButton.disabled = false;
+      closeButton.focus();
     } catch (error) {
       appendLog(`✖ ${(error as Error).message}`);
       toast(state.service, 'error', 'Publish failed', (error as Error).message);
     } finally {
-      publishButton.disabled = false;
+      publishing = false;
+      if (!publishComplete) {
+        publishButton.disabled = false;
+        closeButton.disabled = false;
+        createCheck.input.disabled = false;
+        updateCheck.input.disabled = false;
+        solutionSelect.disabled = false;
+      }
     }
   }
 }
